@@ -1,0 +1,14 @@
+[project]
+name = "numa-pompiliu"
+version = "1.0.0"
+description = "NUMA: A Methodology for Perpetuating Expert Knowledge through LLM-Guided Elicitation and Graph-Grounded Retrieval"
+authors = [
+    { name = "Cristian Boian", email = "cristianboian@gmail.com" },
+]
+license = { text = "MIT" }
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.urls]
+Repository = "https://github.com/numa-pompiliu/numa-pompiliu"
