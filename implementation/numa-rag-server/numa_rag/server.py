@@ -214,24 +214,7 @@ class NumaRAGServer:
         if not items:
             return "No relevant knowledge found. Consider expanding the query or checking the knowledge base."
 
-        top = items[0]
         parts: list[str] = []
-
-        # Check for a direct "no" answer case
-        query_lower = query.lower()
-        if "195°" in query_lower or "195c" in query_lower or "195" in query_lower:
-            for item in items:
-                if "185" in item.statement and "never exceed" in item.statement.lower():
-                    parts.append(
-                        "**No.** The K-700 should not operate at 195°C.\n\n"
-                        f"**{item.expert_name or 'Expert'}** ({item.source}): "
-                        f"\"{item.statement}\"\n\n"
-                        "**Manual K-700** p.34 states operating range 170–190°C, "
-                        "but expert judgment and incident evidence (gasket melted at 193°C, Incident #234) "
-                        "indicate the safe limit is 185°C."
-                    )
-                    return "\n\n".join(parts)
-
         for item in items:
             tier_label = item.tier.value.capitalize()
             source_info = f" ({item.expert_name + ', ' if item.expert_name else ''}{item.source})" if item.source else ""
