@@ -125,9 +125,40 @@ Tu objetivo:
 Esta es la fase más personal. Sé empático. Valora el conocimiento que el experto
 se está llevando. Pregunta por señales sutiles que solo él/ella reconoce.""",
     },
+    "E": {
+        "name": "Negative Knowledge & Anti-Patterns",
+        "duration": "30 min",
+        "description": "Lo que NO hay que hacer: errores que costaron caro, anti-patrones, bordes que causaron incidentes. El conocimiento más valioso para seguridad industrial.",
+        "opening": "Esta es la fase más importante para la seguridad. Vamos a hablar de errores. ¿Cuál fue el error más caro que cometiste o viste cometer en tu puesto? Cuéntamelo todo: qué pasó, qué lo causó, qué consecuencias tuvo.",
+        "prompts": [
+            "¿Qué costó aprender? Dime algo que ahora te parece obvio pero que cuando empezaste no lo era, y te costó un disgusto aprenderlo.",
+            "¿Hay cosas que haces diferente a cómo indica el manual, pero que si un novato hiciera como tú sin entender por qué, podría causar un accidente?",
+            "¿Cuál es el error que tu sucesor NO puede cometer bajo ningún concepto? El que podría costarle el puesto, la salud o peor.",
+            "¿Hay algún momento del año, turno, condición meteorológica, o estado de máquina en el que los errores son más probables? Patrones estacionales o situacionales.",
+        ],
+        "tags": ["negative_knowledge", "antipatterns", "costly_mistakes", "safety_critical", "seasonal_patterns", "successor_warnings"],
+        "llm_system": """Eres un entrevistador experto en captura de conocimiento tácito.
+Estás en la Fase E (conocimiento negativo y anti-patrones, 30 min).
+
+ESTA ES LA FASE MÁS IMPORTANTE para la seguridad industrial.
+
+Tu objetivo:
+1. Extraer los errores más costosos que el experto ha visto o cometido
+2. Identificar anti-patrones: lo que parece correcto pero no lo es
+3. Capturar condiciones de alto riesgo (temporales, situacionales, de máquina)
+4. Obtener advertencias explícitas para el sucesor
+
+Técnicas clave:
+- "Enséñame la cicatriz": pide historias de errores con consecuencias reales
+- "El novato listo": pregúntale qué haría un novato con buenas intenciones pero sin experiencia que podría salir mal
+- "Lo obvio": pregúntale qué es obvio para él pero mortal para otros
+- Patrones: busca estacionalidad, cambios de turno, mantenimientos, días específicos
+
+Sé directo, no edulcores. Este conocimiento salva vidas.""",
+    },
 }
 
-PHASE_ORDER = ["A", "B", "C", "D"]
+PHASE_ORDER = ["A", "B", "C", "D", "E"]
 
 
 # ─── LLM caller ────────────────────────────────────────────────────────────

@@ -28,7 +28,16 @@ from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.orm import Session as DBSession
 
-from database import KnowledgeItem, Message, Session, get_db, init_db
+from database import (
+    IndustrialEntity,
+    IndustrialRelation,
+    KnowledgeItem,
+    Message,
+    Session,
+    ShadowEntry,
+    get_db,
+    init_db,
+)
 from llm import (
     PHASE_DEFINITIONS,
     PHASE_ORDER,
@@ -328,7 +337,208 @@ async def submit_answer(
     return _session_to_dict(session)
 
 
-@app.get("/api/sessions/{session_id}/chat")
+# ─── Shadowing endpoints ────────────────────────────────────────────────────
+
+
+@app.post("/api/shadow", status_code=201)
+async def capture_shadow(req: dict, db: DBSession = Depends(get_db)):
+    """Capture a quick shadow entry (<30 seconds)."""
+    entry = ShadowEntry(
+        session_id=req.get("session_id") or None,
+        expert_name=req.get("expert_name", ""),
+        content=req.get("content", ""),
+        category=req.get("category", "decision"),
+        context=req.get("context", ""),
+        tags=req.get("tags", ""),
+        source="quick",
+    )
+    db.add(entry)
+    db.commit()
+    db.refresh(entry)
+    logger.info(f"Shadow entry #{entry.id} captured ({req.get('category')})")
+    return {"status": "ok", "entry": entry.to_dict()}
+
+
+@app.get("/api/shadow")
+async def list_shadow(limit: int = 50, db: DBSession = Depends(get_db)):
+    """List recent shadow entries."""
+    entries = (
+        db.query(ShadowEntry)
+        .order_by(ShadowEntry.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+    return {"entries": [e.to_dict() for e in entries]}
+
+
+@app.get("/api/shadow/stats")
+async def shadow_stats(db: DBSession = Depends(get_db)):
+    """Get shadow capture statistics."""
+    from datetime import date
+
+    today = date.today()
+    all_entries = db.query(ShadowEntry).all()
+    today_entries = [
+        e for e in all_entries if e.created_at and e.created_at.date() == today
+    ]
+    categories: dict[str, int] = {}
+    for e in all_entries:
+        categories[e.category] = categories.get(e.category, 0) + 1
+    latest = sorted(
+        all_entries, key=lambda e: e.created_at or datetime.min, reverse=True
+    )[:10]
+    return {
+        "today": len(today_entries),
+        "total": len(all_entries),
+        "categories": categories,
+        "latest": [e.to_dict() for e in latest],
+    }
+
+
+# ─── Industrial Graph endpoints ─────────────────────────────────────────────
+
+
+@app.post("/api/industrial/entities", status_code=201)
+async def create_industrial_entity(
+    req: dict, db: DBSession = Depends(get_db)
+):
+    """Add an entity to the industrial knowledge graph."""
+    entity = IndustrialEntity(
+        entity_type=req.get("entity_type", ""),
+        name=req.get("name", ""),
+        description=req.get("description", ""),
+        attributes=req.get("attributes", "{}"),
+        session_id=req.get("session_id") or None,
+    )
+    db.add(entity)
+    db.commit()
+    db.refresh(entity)
+    logger.info(f"Industrial entity #{entity.id}: {req.get('entity_type')}/{req.get('name')}")
+    return {"status": "ok", "entity": entity.to_dict()}
+
+
+@app.post("/api/industrial/relations", status_code=201)
+async def create_industrial_relation(
+    req: dict, db: DBSession = Depends(get_db)
+):
+    """Add a relation between two industrial entities."""
+    src = (
+        db.query(IndustrialEntity)
+        .filter(IndustrialEntity.id == req.get("source_id"))
+        .first()
+    )
+    tgt = (
+        db.query(IndustrialEntity)
+        .filter(IndustrialEntity.id == req.get("target_id"))
+        .first()
+    )
+    if not src or not tgt:
+        raise HTTPException(404, "Source or target entity not found")
+    relation = IndustrialRelation(
+        source_id=req.get("source_id"),
+        target_id=req.get("target_id"),
+        relation_type=req.get("relation_type", ""),
+        weight=req.get("weight", 1.0),
+        notes=req.get("notes", ""),
+    )
+    db.add(relation)
+    db.commit()
+    db.refresh(relation)
+    return {"status": "ok", "relation": relation.to_dict()}
+
+
+@app.get("/api/industrial/entities")
+async def list_industrial_entities(
+    entity_type: str = "",
+    search: str = "",
+    db: DBSession = Depends(get_db),
+):
+    """List industrial entities."""
+    query = db.query(IndustrialEntity)
+    if entity_type:
+        query = query.filter(IndustrialEntity.entity_type == entity_type)
+    if search:
+        query = query.filter(IndustrialEntity.name.ilike(f"%{search}%"))
+    entities = query.order_by(IndustrialEntity.name).all()
+    return {"entities": [e.to_dict() for e in entities], "count": len(entities)}
+
+
+@app.get("/api/industrial/entities/{entity_id}")
+async def get_industrial_entity(entity_id: int, db: DBSession = Depends(get_db)):
+    """Get an industrial entity with its relations."""
+    entity = (
+        db.query(IndustrialEntity).filter(IndustrialEntity.id == entity_id).first()
+    )
+    if not entity:
+        raise HTTPException(404, "Entity not found")
+    outbound = (
+        db.query(IndustrialRelation)
+        .filter(IndustrialRelation.source_id == entity_id)
+        .all()
+    )
+    inbound = (
+        db.query(IndustrialRelation)
+        .filter(IndustrialRelation.target_id == entity_id)
+        .all()
+    )
+    return {
+        "entity": entity.to_dict(),
+        "relations": {
+            "outbound": [
+                {
+                    **r.to_dict(),
+                    "target_name": db.query(IndustrialEntity.name)
+                    .filter(IndustrialEntity.id == r.target_id)
+                    .scalar(),
+                }
+                for r in outbound
+            ],
+            "inbound": [
+                {
+                    **r.to_dict(),
+                    "source_name": db.query(IndustrialEntity.name)
+                    .filter(IndustrialEntity.id == r.source_id)
+                    .scalar(),
+                }
+                for r in inbound
+            ],
+        },
+    }
+
+
+@app.get("/api/industrial/graph")
+async def get_industrial_graph(db: DBSession = Depends(get_db)):
+    """Get full industrial graph for visualization."""
+    entities = db.query(IndustrialEntity).all()
+    relations = db.query(IndustrialRelation).all()
+    return {
+        "entities": [e.to_dict() for e in entities],
+        "relations": [r.to_dict() for r in relations],
+    }
+
+
+@app.get("/api/industrial/types")
+async def get_industrial_types(db: DBSession = Depends(get_db)):
+    """Get entity/relation type counts."""
+    from sqlalchemy import func
+
+    entity_counts = (
+        db.query(IndustrialEntity.entity_type, func.count(IndustrialEntity.id))
+        .group_by(IndustrialEntity.entity_type)
+        .all()
+    )
+    relation_counts = (
+        db.query(IndustrialRelation.relation_type, func.count(IndustrialRelation.id))
+        .group_by(IndustrialRelation.relation_type)
+        .all()
+    )
+    return {
+        "entity_types": [{"type": t, "count": c} for t, c in entity_counts],
+        "relation_types": [{"type": t, "count": c} for t, c in relation_counts],
+    }
+
+
+# ─── Main ───────────────────────────────────────────────────────────────────
 async def get_chat_history(session_id: str, db: DBSession = Depends(get_db)):
     """Get the full conversation history."""
     session = db.query(Session).filter(Session.id == session_id).first()

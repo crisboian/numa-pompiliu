@@ -17,11 +17,12 @@ Named after [Numa Pompilius](https://en.wikipedia.org/wiki/Numa_Pompilius) (753�
 
 | # | Protocol | What it does | Duration |
 |---|----------|-------------|----------|
-| 1 | **NUMA Capture** | LLM-guided 4-phase interview | ~3.5h |
+| 1 | **NUMA Capture** | LLM-guided 5-phase interview (incl. Negative Knowledge) | ~4h |
 | 2 | **NUMA Structure** | Three-tier knowledge representation (Facts · Judgments · Intuitions) | Automated |
 | 3 | **NUMA Validation** | Bidirectional fidelity check with expert sign-off | ~1h |
 | 4 | **NUMA Access** | Hybrid retrieval via Reciprocal Rank Fusion (RRF) | Real-time |
 | 5 | **NUMA Maintenance** | Semi-annual contradiction detection & update cycle | Ongoing |
+| 6 | **Negative Knowledge** | Costly mistakes, anti-patterns & safety-critical warnings | ~30min |
 
 ## Key Results
 
@@ -39,10 +40,12 @@ numa-pompiliu/
 │   ├── 02-structure.md
 │   ├── 03-validation.md
 │   ├── 04-access.md
-│   └── 05-maintenance.md
+│   ├── 05-negative-knowledge.md
+│   └── 06-maintenance.md
 ├── implementation/
 │   ├── numa-rag-server/     # MCP server: ChromaDB + Graphify + RRF
-│   ├── numa-capture/        # LLM-guided interview pipeline
+│   ├── numa-capture/        # LLM-guided interview pipeline (5 phases)
+│   ├── numa-capture-web/    # Web UI: interviews, shadowing, industrial graph
 │   └── numa-benchmark/      # Standardized evaluation suite
 ├── paper/                   # Academic paper (LaTeX + PDF)
 ├── CLAUDE.md                # Context for Claude Code

@@ -2,410 +2,608 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NUMA Capture — Entrevista de Conocimiento Experto</title>
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>NUMA Capture — Conocimiento Experto Industrial</title>
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --bg-primary: #0a0a0f;
-    --bg-secondary: #12121a;
-    --bg-card: #1a1a2e;
-    --bg-input: #1e1e32;
-    --border: #2a2a4a;
-    --text-primary: #e8e8f0;
-    --text-secondary: #9090b0;
-    --text-muted: #606080;
-    --accent: #7c3aed;
-    --accent-light: #a78bfa;
-    --accent-glow: rgba(124, 58, 237, 0.3);
-    --green: #22c55e;
-    --amber: #f59e0b;
-    --red: #ef4444;
-    --phase-a: #3b82f6;
-    --phase-b: #f59e0b;
-    --phase-c: #22c55e;
-    --phase-d: #a855f7;
-    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    --radius: 12px;
-    --radius-sm: 8px;
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#0a0a0f;--bg2:#12121a;--bg3:#1a1a2e;--bg4:#1e1e32;
+    --border:#2a2a4a;--txt:#e8e8f0;--txt2:#9090b0;--txt3:#606080;
+    --accent:#7c3aed;--accent2:#a78bfa;--glow:rgba(124,58,237,0.3);
+    --green:#22c55e;--amber:#f59e0b;--red:#ef4444;
+    --pa:#3b82f6;--pb:#f59e0b;--pc:#22c55e;--pd:#a855f7;--pe:#ef4444;
+    --font:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    --r:12px;--rs:8px;
   }
-  html { font-size: 16px; }
-  body {
-    font-family: var(--font);
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    min-height: 100vh;
-    line-height: 1.6;
+  html{font-size:16px}
+  body{
+    font-family:var(--font);background:var(--bg);color:var(--txt);
+    min-height:100vh;line-height:1.6;
   }
-  ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-  ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
-  .app { max-width: 800px; margin: 0 auto; padding: 20px 16px; }
-  .header {
-    display: flex; align-items: center; gap: 12px;
-    padding: 16px 0; margin-bottom: 24px;
-    border-bottom: 1px solid var(--border);
+  ::-webkit-scrollbar{width:6px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+  .app{max-width:900px;margin:0 auto;padding:20px 16px}
+  .header{
+    display:flex;align-items:center;gap:12px;
+    padding:16px 0;margin-bottom:16px;
+    border-bottom:1px solid var(--border);
   }
-  .header-logo { font-size: 28px; font-weight: 800; letter-spacing: -1px; }
-  .header-logo span { color: var(--accent-light); }
-  .header-sub { color: var(--text-secondary); font-size: 14px; }
-  .header-back {
-    margin-left: auto; color: var(--text-muted); font-size: 13px;
-    text-decoration: none; border: 1px solid var(--border);
-    padding: 6px 14px; border-radius: 8px; transition: all 0.2s;
+  .header-logo{font-size:28px;font-weight:800;letter-spacing:-1px}
+  .header-logo span{color:var(--accent2)}
+  .header-sub{color:var(--txt2);font-size:14px}
+  .header-right{margin-left:auto;display:flex;gap:8px;align-items:center}
+  .header-right a{
+    color:var(--txt3);font-size:13px;text-decoration:none;
+    border:1px solid var(--border);padding:6px 14px;border-radius:8px;
+    transition:all .2s;
   }
-  .header-back:hover { color: var(--text-primary); border-color: var(--accent); }
+  .header-right a:hover{color:var(--txt);border-color:var(--accent)}
 
-  .phase-bar {
-    display: flex; gap: 8px; margin-bottom: 24px;
-    padding: 16px; background: var(--bg-secondary);
-    border-radius: var(--radius); border: 1px solid var(--border);
+  /* Tabs */
+  .tabs{display:flex;gap:4px;margin-bottom:16px;background:var(--bg2);border-radius:var(--r);padding:4px;border:1px solid var(--border)}
+  .tab{
+    flex:1;text-align:center;padding:10px 8px;border-radius:var(--rs);
+    font-size:13px;font-weight:600;cursor:pointer;
+    color:var(--txt3);background:transparent;transition:all .2s;
   }
-  .phase-step {
-    flex: 1; text-align: center; position: relative;
-    padding: 8px 4px; border-radius: var(--radius-sm);
-    font-size: 12px; font-weight: 600;
-    color: var(--text-muted); background: var(--bg-primary);
-    transition: all 0.3s;
-  }
-  .phase-step .phase-num { display: block; font-size: 18px; margin-bottom: 2px; }
-  .phase-step.active { color: var(--text-primary); background: var(--bg-card); box-shadow: 0 0 12px var(--accent-glow); }
-  .phase-step.done { color: var(--green); background: rgba(34, 197, 94, 0.1); }
-  .phase-step.done .phase-num:after { content: ' \u2713'; }
-  .phase-step .phase-color { display: block; height: 3px; border-radius: 2px; margin-top: 6px; transition: all 0.3s; }
-  .phase-step.active .phase-color { box-shadow: 0 0 8px currentColor; }
+  .tab.active{color:var(--txt);background:var(--bg3);box-shadow:0 0 8px var(--glow)}
+  .tab:hover:not(.active){color:var(--txt2)}
 
-  .chat-container {
-    background: var(--bg-secondary); border-radius: var(--radius);
-    border: 1px solid var(--border); min-height: 400px;
-    display: flex; flex-direction: column;
+  /* Phase bar */
+  .phase-bar{
+    display:flex;gap:6px;margin-bottom:20px;
+    padding:12px;background:var(--bg2);
+    border-radius:var(--r);border:1px solid var(--border);
   }
-  .chat-messages {
-    flex: 1; padding: 20px; overflow-y: auto; max-height: 500px;
+  .phase-step{
+    flex:1;text-align:center;position:relative;
+    padding:8px 2px;border-radius:var(--rs);
+    font-size:11px;font-weight:600;
+    color:var(--txt3);background:var(--bg);
+    transition:all .3s;
   }
-  .message {
-    margin-bottom: 16px; padding: 12px 16px;
-    border-radius: var(--radius-sm); max-width: 85%;
-    animation: fadeIn 0.3s ease; line-height: 1.5;
-  }
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-  .message.assistant { background: var(--bg-card); border: 1px solid var(--border); margin-right: auto; align-self: flex-start; }
-  .message.user { background: var(--accent); color: white; margin-left: auto; align-self: flex-end; border: 1px solid var(--accent-light); }
-  .message .msg-phase { font-size: 11px; font-weight: 600; text-transform: uppercase; margin-bottom: 4px; opacity: 0.7; }
-  .message .msg-time { font-size: 11px; color: var(--text-muted); margin-top: 6px; text-align: right; }
+  .phase-step .pn{display:block;font-size:16px;margin-bottom:2px}
+  .phase-step.active{color:var(--txt);background:var(--bg3);box-shadow:0 0 12px var(--glow)}
+  .phase-step.done{color:var(--green);background:rgba(34,197,94,.1)}
+  .phase-step.done .pn:after{content:' ✓'}
+  .phase-step .pc{display:block;height:3px;border-radius:2px;margin-top:4px}
 
-  .chat-input {
-    display: flex; gap: 8px; padding: 16px 20px;
-    border-top: 1px solid var(--border);
-    background: var(--bg-primary);
-    border-radius: 0 0 var(--radius) var(--radius);
+  /* Chat */
+  .chat-container{
+    background:var(--bg2);border-radius:var(--r);
+    border:1px solid var(--border);min-height:350px;
+    display:flex;flex-direction:column;
   }
-  .chat-input textarea {
-    flex: 1; background: var(--bg-input); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); padding: 12px 16px;
-    color: var(--text-primary); font-family: var(--font); font-size: 14px;
-    resize: none; min-height: 48px; max-height: 120px;
-    outline: none; transition: border-color 0.2s;
+  .chat-msgs{flex:1;padding:16px;overflow-y:auto;max-height:450px}
+  .msg{margin-bottom:14px;padding:10px 14px;border-radius:var(--rs);max-width:88%;animation:fadeIn .3s ease;line-height:1.5}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .msg.assistant{background:var(--bg3);border:1px solid var(--border);margin-right:auto}
+  .msg.user{background:var(--accent);color:#fff;margin-left:auto;border:1px solid var(--accent2)}
+  .msg .mp{font-size:10px;font-weight:600;text-transform:uppercase;margin-bottom:3px;opacity:.7}
+  .chat-input{
+    display:flex;gap:8px;padding:12px 16px;
+    border-top:1px solid var(--border);background:var(--bg);
+    border-radius:0 0 var(--r) var(--r);
   }
-  .chat-input textarea:focus { border-color: var(--accent); }
-  .chat-input button {
-    background: var(--accent); color: white; border: none;
-    border-radius: var(--radius-sm); padding: 12px 24px;
-    font-weight: 600; cursor: pointer; transition: all 0.2s;
-    white-space: nowrap;
+  .chat-input textarea{
+    flex:1;background:var(--bg4);border:1px solid var(--border);
+    border-radius:var(--rs);padding:10px 14px;color:var(--txt);
+    font-family:var(--font);font-size:14px;resize:none;min-height:44px;max-height:100px;
+    outline:none;transition:border-color .2s;
   }
-  .chat-input button:hover { background: var(--accent-light); }
-  .chat-input button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .chat-input textarea:focus{border-color:var(--accent)}
+  .chat-input button{
+    background:var(--accent);color:#fff;border:none;
+    border-radius:var(--rs);padding:10px 20px;font-weight:600;
+    cursor:pointer;transition:all .2s;white-space:nowrap;
+  }
+  .chat-input button:hover{background:var(--accent2)}
+  .chat-input button:disabled{opacity:.4;cursor:not-allowed}
 
-  .screen { display: none; }
-  .screen.active { display: block; }
+  /* Screens */
+  .screen{display:none}
+  .screen.active{display:block}
 
-  .setup-form {
-    background: var(--bg-secondary); border-radius: var(--radius);
-    border: 1px solid var(--border); padding: 32px;
-  }
-  .setup-form h2 {
-    font-size: 22px; margin-bottom: 8px;
-    background: linear-gradient(135deg, var(--accent-light), var(--amber));
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-  }
-  .setup-form p { color: var(--text-secondary); margin-bottom: 24px; font-size: 14px; }
-  .form-group { margin-bottom: 16px; }
-  .form-group label { display: block; font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; }
-  .form-group input {
-    width: 100%; background: var(--bg-input); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); padding: 10px 14px;
-    color: var(--text-primary); font-family: var(--font); font-size: 14px;
-    outline: none; transition: border-color 0.2s;
-  }
-  .form-group input:focus { border-color: var(--accent); }
-  .btn-primary {
-    background: linear-gradient(135deg, var(--accent), var(--accent-light));
-    color: white; border: none; border-radius: var(--radius-sm);
-    padding: 12px 32px; font-weight: 600; font-size: 15px;
-    cursor: pointer; transition: all 0.2s; width: 100%;
-  }
-  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 20px var(--accent-glow); }
+  /* Setup */
+  .setup-form{background:var(--bg2);border-radius:var(--r);border:1px solid var(--border);padding:28px}
+  .setup-form h2{font-size:22px;margin-bottom:6px;background:linear-gradient(135deg,var(--accent2),var(--amber));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .setup-form p{color:var(--txt2);margin-bottom:20px;font-size:14px}
+  .fg{margin-bottom:14px}
+  .fg label{display:block;font-size:13px;font-weight:600;color:var(--txt2);margin-bottom:4px}
+  .fg input{width:100%;background:var(--bg4);border:1px solid var(--border);border-radius:var(--rs);padding:10px 14px;color:var(--txt);font-family:var(--font);font-size:14px;outline:none}
+  .fg input:focus{border-color:var(--accent)}.btn-p{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:none;border-radius:var(--rs);padding:12px 28px;font-weight:600;font-size:15px;cursor:pointer;transition:all .2s;width:100%}.btn-p:hover{transform:translateY(-1px);box-shadow:0 4px 20px var(--glow)}.btn-p-sm{padding:8px 18px;font-size:13px;width:auto;display:inline-block}
 
-  .completion { text-align: center; padding: 48px 24px; }
-  .completion h2 { font-size: 28px; margin-bottom: 12px; }
-  .completion p { color: var(--text-secondary); margin-bottom: 16px; max-width: 500px; margin-left: auto; margin-right: auto; }
-  .completion .stats { display: flex; gap: 24px; justify-content: center; margin: 24px 0; }
-  .completion .stat { text-align: center; padding: 16px 24px; background: var(--bg-card); border-radius: var(--radius); border: 1px solid var(--border); }
-  .completion .stat .num { font-size: 28px; font-weight: 800; color: var(--accent-light); }
-  .completion .stat .label { font-size: 12px; color: var(--text-muted); }
-  .btn-secondary { background: transparent; color: var(--text-primary); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 20px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
-  .btn-secondary:hover { border-color: var(--accent); color: var(--accent-light); }
+  /* Completion */
+  .completion{text-align:center;padding:36px 20px}
+  .completion h2{font-size:26px;margin-bottom:10px}
+  .completion p{color:var(--txt2);margin-bottom:14px}
+  .completion .stats{display:flex;gap:16px;justify-content:center;margin:20px 0;flex-wrap:wrap}
+  .completion .stat{padding:14px 20px;background:var(--bg3);border-radius:var(--r);border:1px solid var(--border);min-width:100px}
+  .completion .stat .num{font-size:24px;font-weight:800;color:var(--accent2)}
+  .completion .stat .label{font-size:11px;color:var(--txt3)}
+  .btn-s{background:transparent;color:var(--txt);border:1px solid var(--border);border-radius:var(--rs);padding:10px 18px;font-weight:600;cursor:pointer;transition:all .2s}
+  .btn-s:hover{border-color:var(--accent);color:var(--accent2)}
 
-  .typing-indicator { display: inline-flex; gap: 4px; padding: 4px 0; align-items: center; }
-  .typing-indicator span { width: 8px; height: 8px; background: var(--text-muted); border-radius: 50%; animation: typing 1.4s infinite; }
-  .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
-  .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
-  @keyframes typing { 0%, 60%, 100% { opacity: 0.3; transform: scale(0.8); } 30% { opacity: 1; transform: scale(1); } }
+  /* Typing */
+  .typing{display:inline-flex;gap:4px;padding:4px 0}
+  .typing span{width:8px;height:8px;background:var(--txt3);border-radius:50%;animation:typing 1.4s infinite}
+  .typing span:nth-child(2){animation-delay:.2s}
+  .typing span:nth-child(3){animation-delay:.4s}
+  @keyframes typing{0%,60%,100%{opacity:.3;transform:scale(.8)}30%{opacity:1;transform:scale(1)}}
 
-  @media (max-width: 600px) {
-    .app { padding: 12px 8px; }
-    .message { max-width: 95%; }
-    .phase-bar { flex-wrap: wrap; }
-    .phase-step { min-width: 80px; }
-    .completion .stats { flex-direction: column; align-items: center; }
+  /* Shadow Button */
+  .shadow-fab{
+    position:fixed;bottom:24px;right:24px;z-index:1000;
+    width:56px;height:56px;border-radius:50%;
+    background:linear-gradient(135deg,var(--red),var(--amber));
+    color:#fff;border:none;font-size:28px;cursor:pointer;
+    box-shadow:0 4px 16px rgba(239,68,68,.4);
+    transition:all .3s;display:flex;align-items:center;justify-content:center;
+  }
+  .shadow-fab:hover{transform:scale(1.1);box-shadow:0 6px 24px rgba(239,68,68,.5)}
+  .shadow-fab-label{
+    position:fixed;bottom:84px;right:24px;z-index:999;
+    background:var(--bg3);color:var(--txt2);font-size:12px;
+    padding:4px 12px;border-radius:20px;border:1px solid var(--border);
+    pointer-events:none;
+  }
+
+  /* Shadow Modal */
+  .modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:2000;display:none;align-items:center;justify-content:center;padding:20px}
+  .modal-overlay.active{display:flex}
+  .modal{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:24px;max-width:500px;width:100%;max-height:80vh;overflow-y:auto}
+  .modal h3{font-size:20px;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+  .modal p{color:var(--txt2);font-size:13px;margin-bottom:16px}
+  .modal textarea{width:100%;background:var(--bg4);border:1px solid var(--border);border-radius:var(--rs);padding:12px;color:var(--txt);font-family:var(--font);font-size:14px;resize:vertical;min-height:80px;outline:none;margin-bottom:12px}
+  .modal textarea:focus{border-color:var(--accent)}
+  .modal .cat-select{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+  .modal .cat-btn{padding:6px 14px;border-radius:20px;border:1px solid var(--border);background:var(--bg4);color:var(--txt2);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s}
+  .modal .cat-btn.active{background:var(--accent);color:#fff;border-color:var(--accent2)}
+  .modal .modal-actions{display:flex;gap:8px;justify-content:flex-end}
+
+  /* Graph View */
+  .graph-intro{background:var(--bg2);border-radius:var(--r);border:1px solid var(--border);padding:24px;text-align:center}
+  .graph-intro h2{font-size:20px;margin-bottom:8px}
+  .graph-intro p{color:var(--txt2);font-size:14px;margin-bottom:20px}
+  .graph-types{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-top:16px}
+  .graph-type{background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);padding:12px;text-align:center;transition:all .2s;cursor:pointer}
+  .graph-type:hover{border-color:var(--accent)}
+  .graph-type .gt-icon{font-size:24px;margin-bottom:4px}
+  .graph-type .gt-name{font-size:12px;font-weight:600}
+  .graph-type .gt-count{font-size:11px;color:var(--txt3)}
+
+  @media(max-width:600px){
+    .app{padding:12px 6px}
+    .msg{max-width:95%}
+    .phase-bar{flex-wrap:wrap}
+    .phase-step{min-width:60px;font-size:10px}
+    .shadow-fab{width:48px;height:48px;font-size:22px;bottom:16px;right:16px}
+    .shadow-fab-label{display:none}
   }
 </style>
 </head>
 <body>
 <div class="app" id="app">
   <header class="header">
-    <a href="/" style="text-decoration:none;display:flex;align-items:center;gap:12px;">
+    <a href="/" style="text-decoration:none;display:flex;align-items:center;gap:10px">
       <div class="header-logo">NUMA <span>Capture</span></div>
     </a>
-    <div class="header-sub">Entrevista de Conocimiento Experto</div>
-    <a href="/" class="header-back">&larr; NUMA</a>
+    <div class="header-sub" id="header-sub">Entrevista Experto</div>
+    <div class="header-right">
+      <a href="#" onclick="openShadowModal();return false" style="border-color:var(--red);color:var(--red)">⚡ Shadow</a>
+      <a href="/">← NUMA</a>
+    </div>
   </header>
 
-  <div class="screen active" id="screen-setup">
-    <div class="setup-form">
-      <h2>Captura tu Conocimiento</h2>
-      <p>Este proceso guía a un experto a trav&eacute;s de 4 fases para capturar conocimiento t&aacute;cito. La entrevista dura ~3.5 horas.</p>
-      <div class="form-group">
-        <label>Nombre del experto</label>
-        <input type="text" id="input-name" placeholder="Ej: Pepe Garc&iacute;a">
+  <!-- TABS -->
+  <div class="tabs">
+    <div class="tab active" data-tab="interview" onclick="switchTab('interview')">🎙️ Entrevista</div>
+    <div class="tab" data-tab="shadow" onclick="switchTab('shadow')">⚡ Shadow Log</div>
+    <div class="tab" data-tab="graph" onclick="switchTab('graph')">🏭 Grafo Industrial</div>
+  </div>
+
+  <!-- TAB: INTERVIEW -->
+  <div class="screen active" id="screen-interview">
+    <div class="screen active" id="screen-setup">
+      <div class="setup-form">
+        <h2>Captura tu Conocimiento Industrial</h2>
+        <p>Entrevista guiada de <strong>5 fases</strong> (~4h total) para capturar conocimiento experto. Incluye la nueva <strong>Fase E: Conocimiento Negativo</strong> — errores que salvan vidas.</p>
+        <div class="fg">
+          <label>Nombre del experto</label>
+          <input type="text" id="input-name" placeholder="Ej: Cristian Boian">
+        </div>
+        <div class="fg">
+          <label>Rol / Puesto</label>
+          <input type="text" id="input-role" placeholder="Ej: Operador Senior Ensacado">
+        </div>
+        <div class="fg">
+          <label>Dominio / Área</label>
+          <input type="text" id="input-domain" placeholder="Ej: Seguridad Industrial">
+        </div>
+        <div class="fg">
+          <label>Organización</label>
+          <input type="text" id="input-org" placeholder="Ej: PROPAMSA">
+        </div>
+        <button class="btn-p" onclick="startSession()">Comenzar Entrevista →</button>
       </div>
-      <div class="form-group">
-        <label>Rol / Puesto</label>
-        <input type="text" id="input-role" placeholder="Ej: Operador Senior">
+    </div>
+
+    <div class="screen" id="screen-interview-active">
+      <div class="phase-bar" id="phase-bar">
+        <div class="phase-step" data-phase="A"><span class="pn">A</span>Role<span class="pc" style="background:var(--pa)"></span></div>
+        <div class="phase-step" data-phase="B"><span class="pn">B</span>Incidentes<span class="pc" style="background:var(--pb)"></span></div>
+        <div class="phase-step" data-phase="C"><span class="pn">C</span>Verif.<span class="pc" style="background:var(--pc)"></span></div>
+        <div class="phase-step" data-phase="D"><span class="pn">D</span>No Escrito<span class="pc" style="background:var(--pd)"></span></div>
+        <div class="phase-step" data-phase="E" style="border:1px solid transparent"><span class="pn">E</span>⚠️ Negativo<span class="pc" style="background:var(--pe)"></span></div>
       </div>
-      <div class="form-group">
-        <label>Dominio / &Aacute;rea</label>
-        <input type="text" id="input-domain" placeholder="Ej: Seguridad Industrial">
+      <div class="chat-container">
+        <div class="chat-msgs" id="chat-msgs"></div>
+        <div class="chat-input" id="chat-input-area">
+          <textarea id="chat-input" placeholder="Escribe tu respuesta aquí..." rows="1" oninput="autoResize(this)" onkeydown="handleKey(event)"></textarea>
+          <button id="chat-send" onclick="sendAnswer()">Enviar</button>
+        </div>
       </div>
-      <div class="form-group">
-        <label>Organizaci&oacute;n (opcional)</label>
-        <input type="text" id="input-org" placeholder="Ej: PROPAMSA">
+    </div>
+
+    <div class="screen" id="screen-completion">
+      <div class="completion">
+        <div style="font-size:60px;margin-bottom:12px">🏛️</div>
+        <h2>Entrevista Completada</h2>
+        <p>Conocimiento capturado en 5 fases. Indexado al sistema NUMA.</p>
+        <div class="stats">
+          <div class="stat"><div class="num" id="stat-phases">5</div><div class="label">Fases</div></div>
+          <div class="stat"><div class="num" id="stat-items">0</div><div class="label">Items de conocimiento</div></div>
+          <div class="stat"><div class="num" id="stat-duration">~4h</div><div class="label">Duración</div></div>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+          <button class="btn-s" onclick="exportSession()">📥 Exportar JSON</button>
+          <button class="btn-p btn-p-sm" onclick="resetSession()">Nueva Entrevista</button>
+        </div>
       </div>
-      <button class="btn-primary" onclick="startSession()">Comenzar Entrevista &rarr;</button>
     </div>
   </div>
 
-  <div class="screen" id="screen-interview">
-    <div class="phase-bar" id="phase-bar">
-      <div class="phase-step" data-phase="A"><span class="phase-num">A</span>Role Mapping<span class="phase-color" style="background:var(--phase-a)"></span></div>
-      <div class="phase-step" data-phase="B"><span class="phase-num">B</span>Incidentes<span class="phase-color" style="background:var(--phase-b)"></span></div>
-      <div class="phase-step" data-phase="C"><span class="phase-num">C</span>Verificaci&oacute;n<span class="phase-color" style="background:var(--phase-c)"></span></div>
-      <div class="phase-step" data-phase="D"><span class="phase-num">D</span>Lo No Escrito<span class="phase-color" style="background:var(--phase-d)"></span></div>
+  <!-- TAB: SHADOW LOG -->
+  <div class="screen" id="screen-shadow">
+    <div style="background:var(--bg2);border-radius:var(--r);border:1px solid var(--border);padding:20px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div>
+          <h2 style="font-size:18px">⚡ Shadow Log</h2>
+          <p style="color:var(--txt2);font-size:13px">Capturas rápidas de decisiones en <30 segundos</p>
+        </div>
+        <button class="btn-p btn-p-sm" onclick="openShadowModal()">+ Nueva</button>
+      </div>
+      <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap" id="shadow-stats"></div>
+      <div id="shadow-list" style="max-height:500px;overflow-y:auto"></div>
     </div>
-    <div class="chat-container">
-      <div class="chat-messages" id="chat-messages"></div>
-      <div class="chat-input" id="chat-input-area">
-        <textarea id="chat-input" placeholder="Escribe tu respuesta aqu&iacute;..." rows="1" oninput="autoResize(this)" onkeydown="handleKey(event)"></textarea>
-        <button id="chat-send" onclick="sendAnswer()">Enviar</button>
+  </div>
+
+  <!-- TAB: INDUSTRIAL GRAPH -->
+  <div class="screen" id="screen-graph">
+    <div style="background:var(--bg2);border-radius:var(--r);border:1px solid var(--border);padding:20px">
+      <h2 style="font-size:18px;margin-bottom:4px">🏭 Grafo de Conocimiento Industrial</h2>
+      <p style="color:var(--txt2);font-size:13px;margin-bottom:16px">Entidades y relaciones del dominio industrial capturado</p>
+      <div class="graph-intro" id="graph-container">
+        <p style="color:var(--txt3)">No hay entidades todavía. Empieza una entrevista o añade entidades desde el Shadow Log.</p>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+        <button class="btn-s" onclick="loadGraphTypes()">↻ Recargar</button>
+        <button class="btn-s" onclick="addQuickEntity()">+ Añadir Entidad</button>
       </div>
     </div>
   </div>
 
-  <div class="screen" id="screen-completion">
-    <div class="completion">
-      <div style="font-size:64px;margin-bottom:16px;">&#x1F3DB;&#xFE0F;</div>
-      <h2>Entrevista Completada</h2>
-      <p>Todo el conocimiento capturado se ha guardado en la base de datos NUMA.</p>
-      <div class="stats">
-        <div class="stat"><div class="num" id="stat-phases">4</div><div class="label">Fases</div></div>
-        <div class="stat"><div class="num" id="stat-items">0</div><div class="label">Items de conocimiento</div></div>
-        <div class="stat"><div class="num" id="stat-duration">~3.5h</div><div class="label">Duraci&oacute;n</div></div>
+  <!-- SHADOW MODAL -->
+  <div class="modal-overlay" id="modal-shadow">
+    <div class="modal">
+      <h3>⚡ Captura Rápida</h3>
+      <p>Registra una decisión, observación o advertencia en segundos.</p>
+      <div class="cat-select" id="shadow-cats">
+        <span class="cat-btn active" data-cat="decision" onclick="selectCat(this)">📋 Decisión</span>
+        <span class="cat-btn" data-cat="observation" onclick="selectCat(this)">👀 Observación</span>
+        <span class="cat-btn" data-cat="tip" onclick="selectCat(this)">💡 Truco</span>
+        <span class="cat-btn" data-cat="warning" onclick="selectCat(this)">⚠️ Alerta</span>
       </div>
-      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
-        <button class="btn-secondary" onclick="exportSession()">&#x1F4E5; Exportar JSON</button>
-        <button class="btn-primary" onclick="resetSession()">Nueva Entrevista</button>
+      <textarea id="shadow-content" placeholder="¿Qué pasó? Describe la decisión o situación en 1-3 frases..."></textarea>
+      <div class="fg">
+        <label>Contexto (opcional — ej: turno tarde, línea 3)</label>
+        <input type="text" id="shadow-context" placeholder="turno mañana, máquina X">
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+        <span class="cat-btn" data-tag="seguridad" onclick="selectTag(this)">🛡️ seguridad</span>
+        <span class="cat-btn" data-tag="mantenimiento" onclick="selectTag(this)">🔧 mantenimiento</span>
+        <span class="cat-btn" data-tag="calidad" onclick="selectTag(this)">✅ calidad</span>
+        <span class="cat-btn" data-tag="emergencia" onclick="selectTag(this)">🚨 emergencia</span>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-s" onclick="closeShadowModal()">Cancelar</button>
+        <button class="btn-p btn-p-sm" onclick="saveShadow()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADD ENTITY MODAL -->
+  <div class="modal-overlay" id="modal-entity">
+    <div class="modal">
+      <h3>+ Añadir Entidad Industrial</h3>
+      <p>Añade una entidad al grafo de conocimiento industrial.</p>
+      <div class="fg">
+        <label>Tipo</label>
+        <select id="entity-type" style="width:100%;background:var(--bg4);border:1px solid var(--border);border-radius:var(--rs);padding:10px 14px;color:var(--txt);font-family:var(--font);font-size:14px;outline:none">
+          <option value="machine">🏭 Máquina</option>
+          <option value="procedure">📋 Procedimiento</option>
+          <option value="incident">🚨 Incidente</option>
+          <option value="safety_rule">🛡️ Norma Seguridad</option>
+          <option value="regulation">📜 Regulación</option>
+          <option value="role">👤 Rol</option>
+          <option value="material">🧪 Material</option>
+          <option value="tool">🔧 Herramienta</option>
+          <option value="alarm">🔔 Alarma</option>
+          <option value="area">📍 Área</option>
+        </select>
+      </div>
+      <div class="fg"><label>Nombre</label><input type="text" id="entity-name" placeholder="Ej: Ensacadora rotativa"></div>
+      <div class="fg"><label>Descripción</label><textarea id="entity-desc" style="width:100%;background:var(--bg4);border:1px solid var(--border);border-radius:var(--rs);padding:10px;color:var(--txt);font-family:var(--font);font-size:14px;resize:vertical;min-height:50px;outline:none" placeholder="Descripción breve..."></textarea></div>
+      <div class="modal-actions">
+        <button class="btn-s" onclick="closeEntityModal()">Cancelar</button>
+        <button class="btn-p btn-p-sm" onclick="saveEntity()">Guardar</button>
       </div>
     </div>
   </div>
 </div>
 
+<!-- SHADOW FAB -->
+<div class="shadow-fab-label">Captura rápida</div>
+<button class="shadow-fab" onclick="openShadowModal()">⚡</button>
+
 <script>
-  const API = '';
-  let sessionId = null;
-  let isLoading = false;
+const API = '';
+let sessionId = null;
+let isLoading = false;
+let selectedCat = 'decision';
+let selectedTags = [];
+const phaseColors = {A:'#3b82f6',B:'#f59e0b',C:'#22c55e',D:'#a855f7',E:'#ef4444'};
+const phaseNames = {A:'Role Mapping',B:'Incidentes Críticos',C:'Verificación Inversa',D:'Lo No Escrito',E:'Conocimiento Negativo'};
 
-  function autoResize(el) {
-    el.style.height = 'auto';
-    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
-  }
-  function handleKey(e) {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAnswer(); }
-  }
-  const phaseColors = { A: '#3b82f6', B: '#f59e0b', C: '#22c55e', D: '#a855f7' };
-  const phaseNames = { A: 'Role Mapping', B: 'Incidentes Cr&iacute;ticos', C: 'Verificaci&oacute;n Inversa', D: 'Lo No Escrito' };
+function autoResize(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,100)+'px'}
+function handleKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendAnswer()}}
 
-  async function startSession() {
-    const name = document.getElementById('input-name').value.trim() || 'Experto';
-    const role = document.getElementById('input-role').value.trim() || 'Senior';
-    const domain = document.getElementById('input-domain').value.trim() || 'General';
-    const org = document.getElementById('input-org').value.trim();
-    try {
-      const res = await fetch(API + '/api/sessions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ expert_name: name, expert_role: role, domain: domain, organization: org }),
-      });
-      const data = await res.json();
-      sessionId = data.id;
-      await startInterview();
-    } catch (e) { alert('Error: ' + e.message); }
-  }
+/* ── TABS ── */
+function switchTab(tab){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
+  ['interview','shadow','graph'].forEach(t=>document.getElementById('screen-'+t).classList.toggle('active',t===tab));
+  if(tab==='shadow')loadShadow();
+  if(tab==='graph')loadGraphTypes();
+}
 
-  async function startInterview() {
-    try {
-      const res = await fetch(API + '/api/sessions/' + sessionId + '/start', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
-      });
-      const data = await res.json();
-      switchScreen('interview');
-      renderMessages(data.messages || []);
-      updatePhaseBar(data.current_phase, data);
-      enableInput(true);
-    } catch (e) { alert('Error: ' + e.message); }
-  }
+/* ── SESSION ── */
+async function startSession(){
+  const name=document.getElementById('input-name').value.trim()||'Experto';
+  const role=document.getElementById('input-role').value.trim()||'Senior';
+  const domain=document.getElementById('input-domain').value.trim()||'General';
+  const org=document.getElementById('input-org').value.trim();
+  try{
+    const r=await fetch(API+'/api/sessions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({expert_name:name,expert_role:role,domain,organization:org})});
+    const d=await r.json();sessionId=d.id;await startInterview();
+  }catch(e){alert('Error: '+e.message)}
+}
+async function startInterview(){
+  try{
+    const r=await fetch(API+'/api/sessions/'+sessionId+'/start',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+    const d=await r.json();
+    document.getElementById('screen-setup').classList.remove('active');
+    document.getElementById('screen-interview-active').classList.add('active');
+    renderMessages(d.messages||[]);updatePhaseBar(d.current_phase,d);enableInput(true);
+    document.getElementById('header-sub').textContent=d.expert_name;
+  }catch(e){alert('Error: '+e.message)}
+}
+async function sendAnswer(){
+  const input=document.getElementById('chat-input');
+  const text=input.value.trim();
+  if(!text||isLoading)return;
+  addMessage({role:'user',content:text,phase:''});
+  input.value='';input.style.height='auto';enableInput(false);showTyping();
+  try{
+    const r=await fetch(API+'/api/sessions/'+sessionId+'/answer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({answer:text})});
+    const d=await r.json();removeTyping();
+    if(d.status==='completed'){showCompletion(d);return}
+    const msgs=d.messages||[];const last=msgs[msgs.length-1];
+    if(last&&last.role==='assistant')addMessage(last);
+    updatePhaseBar(d.current_phase,d);enableInput(true);
+  }catch(e){removeTyping();addMessage({role:'assistant',content:'Error de conexión. Intenta de nuevo.',phase:''});enableInput(true)}
+}
 
-  async function sendAnswer() {
-    const input = document.getElementById('chat-input');
-    const text = input.value.trim();
-    if (!text || isLoading) return;
-    addMessage({ role: 'user', content: text, phase: '' });
-    input.value = ''; input.style.height = 'auto';
-    enableInput(false); showTyping();
-    try {
-      const res = await fetch(API + '/api/sessions/' + sessionId + '/answer', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ answer: text }),
-      });
-      const data = await res.json();
-      removeTyping();
-      if (data.status === 'completed') { showCompletion(data); return; }
-      const msgs = data.messages || [];
-      const lastMsg = msgs[msgs.length - 1];
-      if (lastMsg && lastMsg.role === 'assistant') addMessage(lastMsg);
-      updatePhaseBar(data.current_phase, data);
-      enableInput(true);
-    } catch (e) {
-      removeTyping();
-      addMessage({ role: 'assistant', content: 'Error de conexi&oacute;n. Intenta de nuevo.', phase: '' });
-      enableInput(true);
+/* ── CHAT RENDER ── */
+function renderMessages(msgs){
+  const c=document.getElementById('chat-msgs');c.innerHTML='';
+  msgs.forEach(m=>{if(m.role==='assistant'||m.role==='user')c.appendChild(createMsgEl(m))});
+  scrollBottom();
+}
+function addMessage(msg){document.getElementById('chat-msgs').appendChild(createMsgEl(msg));scrollBottom()}
+function createMsgEl(msg){
+  const el=document.createElement('div');el.className='msg '+msg.role;let html='';
+  if(msg.phase&&phaseColors[msg.phase]){
+    html+='<div class="mp" style="color:'+phaseColors[msg.phase]+'">Fase '+msg.phase+' · '+(phaseNames[msg.phase]||'')+'</div>';
+  }
+  let s=(msg.content||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  s=s.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
+  s=s.replace(/\*(.*?)\*/g,'<em>$1</em>');
+  s=s.replace(/```(\w*)\n([\s\S]*?)```/g,'<pre><code>$2</code></pre>');
+  s=s.replace(/`([^`]+)`/g,'<code>$1</code>');
+  s=s.replace(/\n/g,'<br>');
+  html+='<div>'+s+'</div>';el.innerHTML=html;return el;
+}
+function showTyping(){
+  const c=document.getElementById('chat-msgs');
+  const el=document.createElement('div');el.className='msg assistant';el.id='typing-el';
+  el.innerHTML='<div class="typing"><span></span><span></span><span></span></div>';
+  c.appendChild(el);scrollBottom();
+}
+function removeTyping(){const el=document.getElementById('typing-el');if(el)el.remove()}
+function scrollBottom(){const c=document.getElementById('chat-msgs');c.scrollTop=c.scrollHeight}
+function updatePhaseBar(cp,data){
+  const phases=['A','B','C','D','E'];
+  document.querySelectorAll('.phase-step').forEach(el=>{
+    el.classList.remove('active','done');
+    const idx=phases.indexOf(el.dataset.phase);
+    if(idx<phases.indexOf(cp))el.classList.add('done');
+    else if(el.dataset.phase===cp&&data.status!=='completed')el.classList.add('active');
+  });
+}
+function enableInput(enabled){
+  isLoading=!enabled;
+  document.getElementById('chat-input').disabled=!enabled;
+  document.getElementById('chat-send').disabled=!enabled;
+  if(enabled)document.getElementById('chat-input').focus();
+}
+async function showCompletion(data){
+  document.getElementById('screen-interview-active').classList.remove('active');
+  document.getElementById('screen-completion').classList.add('active');
+  document.getElementById('stat-items').textContent=(data.knowledge_items||[]).length;
+  try{const r=await fetch(API+'/api/sessions/'+sessionId+'/export');const ed=await r.json();document.getElementById('stat-items').textContent=(ed.knowledge_items||[]).length}catch(e){}
+}
+async function exportSession(){
+  try{const r=await fetch(API+'/api/sessions/'+sessionId+'/export');const d=await r.json();const b=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download='numa-capture-'+sessionId.slice(0,8)+'.json';a.click();URL.revokeObjectURL(u)}catch(e){alert('Error: '+e.message)}
+}
+function resetSession(){
+  sessionId=null;document.getElementById('chat-msgs').innerHTML='';
+  document.getElementById('screen-completion').classList.remove('active');
+  document.getElementById('screen-setup').classList.add('active');
+  document.getElementById('header-sub').textContent='Entrevista Experto';
+  ['input-name','input-role','input-domain','input-org'].forEach(id=>document.getElementById(id).value='');
+}
+
+/* ── SHADOW ── */
+function openShadowModal(){
+  document.getElementById('modal-shadow').classList.add('active');
+  document.getElementById('shadow-content').value='';
+  document.getElementById('shadow-context').value='';
+  selectedCat='decision';selectedTags=[];
+  document.querySelectorAll('#shadow-cats .cat-btn').forEach(b=>b.classList.toggle('active',b.dataset.cat==='decision'));
+  document.querySelectorAll('#modal-shadow [data-tag]').forEach(b=>b.classList.remove('active'));
+}
+function closeShadowModal(){document.getElementById('modal-shadow').classList.remove('active')}
+function selectCat(el){
+  document.querySelectorAll('#shadow-cats .cat-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');selectedCat=el.dataset.cat;
+}
+function selectTag(el){
+  el.classList.toggle('active');const tag=el.dataset.tag;
+  if(el.classList.contains('active')){if(!selectedTags.includes(tag))selectedTags.push(tag)}
+  else{selectedTags=selectedTags.filter(t=>t!==tag)}
+}
+async function saveShadow(){
+  const content=document.getElementById('shadow-content').value.trim();
+  if(!content){alert('Escribe algo antes de guardar');return}
+  const context=document.getElementById('shadow-context').value.trim();
+  try{
+    const r=await fetch(API+'/api/shadow',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content,category:selectedCat,context,tags:selectedTags.join(','),expert_name:document.getElementById('input-name').value||''})});
+    const d=await r.json();
+    if(d.status==='ok'){closeShadowModal();loadShadow();}
+  }catch(e){alert('Error: '+e.message)}
+}
+async function loadShadow(){
+  try{
+    const [r1,r2]=await Promise.all([fetch(API+'/api/shadow?limit=30'),fetch(API+'/api/shadow/stats')]);
+    const {entries}=await r1.json();const stats=await r2.json();
+    const statsEl=document.getElementById('shadow-stats');
+    statsEl.innerHTML=
+      '<span style="background:var(--bg3);padding:6px 14px;border-radius:20px;font-size:12px">📊 Hoy: <strong>'+stats.today+'</strong></span>'+
+      '<span style="background:var(--bg3);padding:6px 14px;border-radius:20px;font-size:12px">Total: <strong>'+stats.total+'</strong></span>'+
+      Object.entries(stats.categories).map(([k,v])=>'<span style="background:var(--bg3);padding:6px 14px;border-radius:20px;font-size:12px">'+k+': <strong>'+v+'</strong></span>').join('');
+    const listEl=document.getElementById('shadow-list');
+    listEl.innerHTML=entries.length===0?'<p style="color:var(--txt3);text-align:center;padding:24px">Sin capturas todavía. Pulsa el botón ⚡ para registrar algo.</p>':
+      entries.map(e=>{
+        const catIcons={decision:'📋',observation:'👀',tip:'💡',warning:'⚠️'};
+        return '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);padding:12px;margin-bottom:8px">'+
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'+
+          '<span style="font-size:11px;font-weight:600;color:var(--txt3)">'+(catIcons[e.category]||'📋')+' '+e.category+'</span>'+
+          '<span style="font-size:10px;color:var(--txt3)">'+new Date(e.created_at).toLocaleTimeString()+'</span></div>'+
+          '<div style="font-size:14px;margin-bottom:4px">'+escapeHtml(e.content)+'</div>'+
+          (e.context?'<div style="font-size:11px;color:var(--txt2)">📍 '+escapeHtml(e.context)+'</div>':'')+
+          (e.tags&&e.tags.length?'<div style="font-size:10px;color:var(--txt3);margin-top:4px">'+e.tags.map(t=>'<span style="background:var(--bg4);padding:2px 8px;border-radius:10px;margin-right:4px">'+t+'</span>').join('')+'</div>':'')+
+          '</div>'
+      }).join('');
+  }catch(e){}
+}
+
+/* ── INDUSTRIAL GRAPH ── */
+async function loadGraphTypes(){
+  const c=document.getElementById('graph-container');
+  c.innerHTML='<p style="color:var(--txt3)">Cargando...</p>';
+  try{
+    const r=await fetch(API+'/api/industrial/types');const types=await r.json();
+    const r2=await fetch(API+'/api/industrial/entities?limit=50');const ents=await r2.json();
+    if(ents.count===0){
+      c.innerHTML='<p style="color:var(--txt3)">No hay entidades todavía. Empieza una entrevista o añade entidades manualmente.</p>';return;
     }
-  }
+    const icons={'machine':'🏭','procedure':'📋','incident':'🚨','safety_rule':'🛡️','regulation':'📜','role':'👤','material':'🧪','tool':'🔧','alarm':'🔔','area':'📍'};
+    c.innerHTML=
+      '<div class="graph-types">'+
+      types.entity_types.map(t=>'<div class="graph-type" onclick="loadEntityType(\''+t.type+'\')"><div class="gt-icon">'+(icons[t.type]||'📦')+'</div><div class="gt-name">'+t.type.replace(/_/g,' ')+'</div><div class="gt-count">'+t.count+'</div></div>').join('')+
+      '</div>'+
+      '<div id="entity-list" style="margin-top:16px"></div>'+
+      '<div id="entity-detail" style="margin-top:12px"></div>';
+    // show all entities
+    const listEl=document.getElementById('entity-list');
+    listEl.innerHTML='<h3 style="font-size:14px;color:var(--txt2);margin-bottom:8px">Todas las entidades</h3>'+
+      '<div style="display:flex;flex-wrap:wrap;gap:6px">'+
+      ents.entities.map(e=>'<span style="background:var(--bg3);border:1px solid var(--border);padding:4px 10px;border-radius:6px;font-size:12px;cursor:pointer" onclick="loadEntityDetail('+e.id+')">'+
+        (icons[e.entity_type]||'📦')+' '+escapeHtml(e.name)+'</span>').join('')+
+      '</div>';
+    document.getElementById('entity-detail').innerHTML='';
+  }catch(e){c.innerHTML='<p style="color:var(--red)">Error cargando grafo.</p>'}
+}
+async function loadEntityType(type){
+  try{
+    const r=await fetch(API+'/api/industrial/entities?entity_type='+type);const d=await r.json();
+    const icons={'machine':'🏭','procedure':'📋','incident':'🚨','safety_rule':'🛡️','regulation':'📜','role':'👤','material':'🧪','tool':'🔧','alarm':'🔔','area':'📍'};
+    document.getElementById('entity-list').innerHTML='<h3 style="font-size:14px;color:var(--txt2);margin-bottom:8px">'+type.replace(/_/g,' ')+' ('+d.count+') <span style="cursor:pointer;color:var(--accent2);font-size:12px" onclick="loadGraphTypes()">← todas</span></h3>'+
+      '<div style="display:flex;flex-wrap:wrap;gap:6px">'+
+      d.entities.map(e=>'<span style="background:var(--bg3);border:1px solid var(--border);padding:4px 10px;border-radius:6px;font-size:12px;cursor:pointer" onclick="loadEntityDetail('+e.id+')">'+
+        (icons[e.entity_type]||'📦')+' '+escapeHtml(e.name)+'</span>').join('')+
+      '</div>';
+    document.getElementById('entity-detail').innerHTML='';
+  }catch(e){}
+}
+async function loadEntityDetail(id){
+  try{
+    const r=await fetch(API+'/api/industrial/entities/'+id);const d=await r.json();
+    const e=d.entity;
+    document.getElementById('entity-detail').innerHTML=
+      '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);padding:16px;margin-top:8px">'+
+      '<h4 style="font-size:16px;margin-bottom:4px">'+escapeHtml(e.name)+' <span style="font-size:12px;color:var(--txt3)">#'+e.id+' · '+e.entity_type.replace(/_/g,' ')+'</span></h4>'+
+      (e.description?'<p style="font-size:13px;color:var(--txt2);margin-bottom:8px">'+escapeHtml(e.description)+'</p>':'')+
+      '<div style="font-size:12px;color:var(--txt3)">Atributos: '+(e.attributes&&Object.keys(e.attributes).length?Object.entries(e.attributes).map(([k,v])=>k+': '+v).join(', '):'ninguno')+'</div>'+
+      (d.relations.outbound.length?'<div style="margin-top:8px"><strong style="font-size:12px;color:var(--txt2)">→ Relaciones salientes:</strong>'+
+        d.relations.outbound.map(r=>'<div style="font-size:12px;color:var(--txt2);margin-left:12px">→ <strong>'+r.relation_type+'</strong> → '+escapeHtml(r.target_name)+'</div>').join('')+'</div>':'')+
+      (d.relations.inbound.length?'<div style="margin-top:8px"><strong style="font-size:12px;color:var(--txt2)">← Relaciones entrantes:</strong>'+
+        d.relations.inbound.map(r=>'<div style="font-size:12px;color:var(--txt2);margin-left:12px">← '+escapeHtml(r.source_name)+' <strong>'+r.relation_type+'</strong></div>').join('')+'</div>':'')+
+      '</div>';
+  }catch(e){}
+}
+function addQuickEntity(){document.getElementById('modal-entity').classList.add('active')}
+function closeEntityModal(){document.getElementById('modal-entity').classList.remove('active')}
+async function saveEntity(){
+  const type=document.getElementById('entity-type').value;
+  const name=document.getElementById('entity-name').value.trim();
+  const desc=document.getElementById('entity-desc').value.trim();
+  if(!name){alert('El nombre es obligatorio');return}
+  try{
+    const r=await fetch(API+'/api/industrial/entities',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({entity_type:type,name,description:desc})});
+    const d=await r.json();
+    if(d.status==='ok'){closeEntityModal();document.getElementById('entity-name').value='';document.getElementById('entity-desc').value='';loadGraphTypes();}
+  }catch(e){alert('Error: '+e.message)}
+}
 
-  function renderMessages(messages) {
-    const container = document.getElementById('chat-messages');
-    container.innerHTML = '';
-    messages.forEach(function(m) { if (m.role === 'assistant') container.appendChild(createMessageEl(m)); });
-    scrollToBottom();
-  }
-  function addMessage(msg) {
-    document.getElementById('chat-messages').appendChild(createMessageEl(msg));
-    scrollToBottom();
-  }
-  function createMessageEl(msg) {
-    var el = document.createElement('div');
-    el.className = 'message ' + msg.role;
-    var html = '';
-    if (msg.phase) {
-      var color = phaseColors[msg.phase] || '#7c3aed';
-      html += '<div class="msg-phase" style="color:' + color + '">Fase ' + msg.phase + ' &middot; ' + (phaseNames[msg.phase] || '') + '</div>';
-    }
-    var s = (msg.content || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    s = s.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    s = s.replace(/\*(.*?)\*/g, '<em>$1</em>');
-    s = s.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
-    s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
-    s = s.replace(/\n/g, '<br>');
-    html += '<div class="msg-content">' + s + '</div>';
-    el.innerHTML = html;
-    return el;
-  }
-  function showTyping() {
-    var container = document.getElementById('chat-messages');
-    var el = document.createElement('div');
-    el.className = 'message assistant';
-    el.id = 'typing-indicator';
-    el.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
-    container.appendChild(el);
-    scrollToBottom();
-  }
-  function removeTyping() {
-    var el = document.getElementById('typing-indicator');
-    if (el) el.remove();
-  }
-  function scrollToBottom() {
-    var container = document.getElementById('chat-messages');
-    container.scrollTop = container.scrollHeight;
-  }
-  function updatePhaseBar(currentPhase, data) {
-    var phases = ['A','B','C','D'];
-    document.querySelectorAll('.phase-step').forEach(function(el) {
-      el.classList.remove('active','done');
-      idx = phases.indexOf(el.dataset.phase);
-      if (idx < phases.indexOf(currentPhase)) el.classList.add('done');
-      else if (el.dataset.phase === currentPhase && data.status !== 'completed') el.classList.add('active');
-    });
-  }
-  function switchScreen(name) {
-    document.querySelectorAll('.screen').forEach(function(el) { el.classList.remove('active'); });
-    document.getElementById('screen-' + name).classList.add('active');
-  }
-  function enableInput(enabled) {
-    isLoading = !enabled;
-    document.getElementById('chat-input').disabled = !enabled;
-    document.getElementById('chat-send').disabled = !enabled;
-    if (enabled) document.getElementById('chat-input').focus();
-  }
-  async function showCompletion(data) {
-    switchScreen('completion');
-    document.getElementById('stat-items').textContent = (data.knowledge_items || []).length;
-    try {
-      var res = await fetch(API + '/api/sessions/' + sessionId + '/export');
-      var ed = await res.json();
-      document.getElementById('stat-items').textContent = (ed.knowledge_items || []).length;
-    } catch(e) {}
-  }
-  async function exportSession() {
-    try {
-      var res = await fetch(API + '/api/sessions/' + sessionId + '/export');
-      var data = await res.json();
-      var blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement('a');
-      a.href = url; a.download = 'numa-capture-' + sessionId.slice(0,8) + '.json';
-      a.click(); URL.revokeObjectURL(url);
-    } catch(e) { alert('Error: '+e.message); }
-  }
-  function resetSession() {
-    sessionId = null;
-    document.getElementById('chat-messages').innerHTML = '';
-    switchScreen('setup');
-    document.getElementById('input-name').value = '';
-    document.getElementById('input-role').value = '';
-    document.getElementById('input-domain').value = '';
-    document.getElementById('input-org').value = '';
-  }
+/* ── UTILS ── */
+function escapeHtml(s){
+  const d=document.createElement('div');d.textContent=s;return d.innerHTML;
+}
+
+/* ── INIT ── */
+// Load shadow stats on tab switch
 </script>
 </body>
 </html>

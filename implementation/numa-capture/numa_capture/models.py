@@ -15,6 +15,7 @@ class Phase(str, Enum):
     B = "critical_cases"
     C = "inverse_verification"
     D = "the_unwritten"
+    E = "negative_knowledge"
 
 
 PHASE_DURATIONS: dict[Phase, int] = {
@@ -22,6 +23,7 @@ PHASE_DURATIONS: dict[Phase, int] = {
     Phase.B: 90,
     Phase.C: 60,
     Phase.D: 30,
+    Phase.E: 30,
 }
 
 PHASE_DESCRIPTIONS: dict[Phase, str] = {
@@ -29,6 +31,7 @@ PHASE_DESCRIPTIONS: dict[Phase, str] = {
     Phase.B: "Top 10 critical cases with decision rationale",
     Phase.C: "Inverse verification — challenge testimony against documentation",
     Phase.D: "The Unwritten — knowledge in no document",
+    Phase.E: "Negative Knowledge — costly mistakes and anti-patterns",
 }
 
 

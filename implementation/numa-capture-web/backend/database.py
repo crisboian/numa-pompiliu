@@ -145,7 +145,85 @@ class KnowledgeItem(Base):
         }
 
 
-# ─── Init ──────────────────────────────────────────────────────────────────
+class ShadowEntry(Base):
+    """A quick shadow capture — record a decision in <30 seconds."""
+
+    __tablename__ = "shadow_entries"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    session_id = Column(String(36), ForeignKey("sessions.id"), nullable=True)
+    expert_name = Column(String(255), default="")
+    content = Column(Text, nullable=False)
+    category = Column(String(64), default="decision")  # decision, observation, tip, warning
+    context = Column(String(512), default="")  # brief context: e.g. "turno tarde, línea 3"
+    tags = Column(String(512), default="")
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    source = Column(String(32), default="quick")  # quick, scheduled, followup
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "session_id": self.session_id,
+            "expert_name": self.expert_name,
+            "content": self.content,
+            "category": self.category,
+            "context": self.context,
+            "tags": self.tags.split(",") if self.tags else [],
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "source": self.source,
+        }
+
+
+class IndustrialEntity(Base):
+    """An entity in the industrial knowledge graph."""
+
+    __tablename__ = "industrial_entities"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    entity_type = Column(String(64), nullable=False, index=True)  # machine, procedure, incident, safety_rule, regulation, role, material, tool, alarm, area
+    name = Column(String(255), nullable=False)
+    description = Column(Text, default="")
+    attributes = Column(Text, default="{}")  # JSON dict
+    session_id = Column(String(36), ForeignKey("sessions.id"), nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "entity_type": self.entity_type,
+            "name": self.name,
+            "description": self.description,
+            "attributes": json.loads(self.attributes) if self.attributes else {},
+            "session_id": self.session_id,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class IndustrialRelation(Base):
+    """A relation between two industrial entities."""
+
+    __tablename__ = "industrial_relations"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    source_id = Column(Integer, ForeignKey("industrial_entities.id"), nullable=False)
+    target_id = Column(Integer, ForeignKey("industrial_entities.id"), nullable=False)
+    relation_type = Column(String(64), nullable=False)  # operates, follows, caused_by, prevented_by, requires, located_in, regulated_by, triggers, uses
+    weight = Column(Float, default=1.0)
+    notes = Column(Text, default="")
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    source = relationship("IndustrialEntity", foreign_keys=[source_id])
+    target = relationship("IndustrialEntity", foreign_keys=[target_id])
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "source_id": self.source_id,
+            "target_id": self.target_id,
+            "relation_type": self.relation_type,
+            "weight": self.weight,
+            "notes": self.notes,
+        }
 
 
 def init_db() -> None:
