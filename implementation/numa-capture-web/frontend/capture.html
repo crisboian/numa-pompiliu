@@ -226,6 +226,12 @@
           <input type="text" id="input-org" placeholder="Ej: PROPAMSA">
         </div>
         <button class="btn-p" onclick="startSession()">Comenzar Entrevista →</button>
+        <div id="continue-session" style="display:none;margin-top:16px;padding:16px;background:var(--bg3);border-radius:var(--rs);border:1px solid var(--accent);text-align:center">
+          <p style="font-size:14px;color:var(--txt2);margin-bottom:8px">↻ Tienes una sesión en curso</p>
+          <p style="font-size:12px;color:var(--txt3);margin-bottom:12px" id="continue-info">...</p>
+          <button class="btn-p btn-p-sm" onclick="continueSession()">Continuar Entrevista</button>
+          <button class="btn-s" style="margin-left:8px" onclick="clearStoredSession()">Empezar nueva</button>
+        </div>
       </div>
     </div>
 
@@ -385,7 +391,11 @@ async function startSession(){
   const org=document.getElementById('input-org').value.trim();
   try{
     const r=await fetch(API+'/api/sessions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({expert_name:name,expert_role:role,domain,organization:org})});
-    const d=await r.json();sessionId=d.id;await startInterview();
+    const d=await r.json();sessionId=d.id;
+    localStorage.setItem('numa_session_id', sessionId);
+    localStorage.setItem('numa_session_name', name);
+    localStorage.setItem('numa_started_at', Date.now().toString());
+    await startInterview();
   }catch(e){alert('Error: '+e.message)}
 }
 async function startInterview(){
@@ -472,6 +482,46 @@ function resetSession(){
   document.getElementById('screen-setup').classList.add('active');
   document.getElementById('header-sub').textContent='Entrevista Experto';
   ['input-name','input-role','input-domain','input-org'].forEach(id=>document.getElementById(id).value='');
+  localStorage.removeItem('numa_session_id');
+  localStorage.removeItem('numa_session_name');
+  localStorage.removeItem('numa_started_at');
+  document.getElementById('continue-session').style.display='none';
+}
+
+/* ── LOCALSTORAGE SESSION ── */
+function checkStoredSession(){
+  const sid=localStorage.getItem('numa_session_id');
+  if(!sid)return;
+  const name=localStorage.getItem('numa_session_name')||'?';
+  document.getElementById('continue-info').textContent='Entrevista de '+name+' — ID: '+sid.slice(0,8)+'...';
+  document.getElementById('continue-session').style.display='block';
+}
+async function continueSession(){
+  const sid=localStorage.getItem('numa_session_id');
+  if(!sid){document.getElementById('continue-session').style.display='none';return;}
+  try{
+    const r=await fetch(API+'/api/sessions/'+sid);
+    if(!r.ok)throw new Error('Session not found');
+    const d=await r.json();
+    if(d.status==='completed'){localStorage.removeItem('numa_session_id');document.getElementById('continue-session').style.display='none';return;}
+    sessionId=sid;
+    document.getElementById('screen-setup').classList.remove('active');
+    document.getElementById('screen-interview-active').classList.add('active');
+    renderMessages(d.messages||[]);
+    updatePhaseBar(d.current_phase,d);
+    enableInput(true);
+    document.getElementById('header-sub').textContent=d.expert_name||name;
+    document.getElementById('continue-session').style.display='none';
+  }catch(e){
+    localStorage.removeItem('numa_session_id');
+    document.getElementById('continue-session').style.display='none';
+  }
+}
+function clearStoredSession(){
+  localStorage.removeItem('numa_session_id');
+  localStorage.removeItem('numa_session_name');
+  localStorage.removeItem('numa_started_at');
+  document.getElementById('continue-session').style.display='none';
 }
 
 /* ── SHADOW ── */
@@ -511,18 +561,18 @@ async function loadShadow(){
     statsEl.innerHTML=
       '<span style="background:var(--bg3);padding:6px 14px;border-radius:20px;font-size:12px">📊 Hoy: <strong>'+stats.today+'</strong></span>'+
       '<span style="background:var(--bg3);padding:6px 14px;border-radius:20px;font-size:12px">Total: <strong>'+stats.total+'</strong></span>'+
-      Object.entries(stats.categories).map(([k,v])=>'<span style="background:var(--bg3);padding:6px 14px;border-radius:20px;font-size:12px">'+k+': <strong>'+v+'</strong></span>').join('');
+      Object.entries(stats.categories).map(([k,v])=>'<span style="background:var(--bg3);padding:6px 14px;border-radius:20px;font-size:12px">'+escapeHtml(k)+': <strong>'+escapeHtml(String(v))+'</strong></span>').join('');
     const listEl=document.getElementById('shadow-list');
     listEl.innerHTML=entries.length===0?'<p style="color:var(--txt3);text-align:center;padding:24px">Sin capturas todavía. Pulsa el botón ⚡ para registrar algo.</p>':
       entries.map(e=>{
         const catIcons={decision:'📋',observation:'👀',tip:'💡',warning:'⚠️'};
         return '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);padding:12px;margin-bottom:8px">'+
           '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'+
-          '<span style="font-size:11px;font-weight:600;color:var(--txt3)">'+(catIcons[e.category]||'📋')+' '+e.category+'</span>'+
+          '<span style="font-size:11px;font-weight:600;color:var(--txt3)">'+(catIcons[e.category]||'📋')+' '+escapeHtml(e.category)+'</span>'+
           '<span style="font-size:10px;color:var(--txt3)">'+new Date(e.created_at).toLocaleTimeString()+'</span></div>'+
           '<div style="font-size:14px;margin-bottom:4px">'+escapeHtml(e.content)+'</div>'+
           (e.context?'<div style="font-size:11px;color:var(--txt2)">📍 '+escapeHtml(e.context)+'</div>':'')+
-          (e.tags&&e.tags.length?'<div style="font-size:10px;color:var(--txt3);margin-top:4px">'+e.tags.map(t=>'<span style="background:var(--bg4);padding:2px 8px;border-radius:10px;margin-right:4px">'+t+'</span>').join('')+'</div>':'')+
+          (e.tags&&e.tags.length?'<div style="font-size:10px;color:var(--txt3);margin-top:4px">'+e.tags.map(t=>'<span style="background:var(--bg4);padding:2px 8px;border-radius:10px;margin-right:4px">'+escapeHtml(t)+'</span>').join('')+'</div>':'')+
           '</div>'
       }).join('');
   }catch(e){}
@@ -603,7 +653,8 @@ function escapeHtml(s){
 }
 
 /* ── INIT ── */
-// Load shadow stats on tab switch
+// Check for stored session on load
+checkStoredSession();
 </script>
 </body>
 </html>

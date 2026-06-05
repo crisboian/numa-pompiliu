@@ -41,6 +41,7 @@ from database import (
 from llm import (
     PHASE_DEFINITIONS,
     PHASE_ORDER,
+    analyze_answer,
     generate_next_question,
     generate_summary,
     get_next_template_prompt,
@@ -83,10 +84,39 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="NUMA Capture Web", version="1.0.0", lifespan=lifespan)
 
+# ─── Auth middleware ─────────────────────────────────────────
+NUMA_API_KEY = os.environ.get("NUMA_API_KEY", "")
+PUBLIC_PATHS = {"/health", "/", "/capture", "/capture.html", "/api/phases"}
+
+
+@app.middleware("http")
+async def auth_middleware(request, call_next):
+    """Require X-API-Key header on all endpoints except public ones."""
+    if not NUMA_API_KEY:
+        # No key configured — all access allowed (dev mode)
+        return await call_next(request)
+
+    path = request.url.path
+    if path in PUBLIC_PATHS or path.startswith("/favicon"):
+        return await call_next(request)
+
+    api_key = request.headers.get("X-API-Key", "")
+    if api_key != NUMA_API_KEY:
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "Unauthorized — provide X-API-Key header"},
+        )
+
+    return await call_next(request)
+
+
+cors_origins = os.environ.get("NUMA_CORS_ORIGINS", "*")
+is_wildcard = cors_origins == "*"
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=cors_origins.split(",") if not is_wildcard else ["*"],
+    allow_credentials=not is_wildcard,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -236,6 +266,26 @@ async def submit_answer(
     db.add(user_msg)
     db.commit()
 
+    # Extract knowledge items from the answer
+    session_data = session.to_dict()
+    conversation = _build_conversation(session)
+    try:
+        analysis = await analyze_answer(session_data, conversation)
+        for ki in analysis.get("knowledge_items", []):
+            item = KnowledgeItem(
+                session_id=session.id,
+                statement=ki.get("statement", ""),
+                category=ki.get("category", "fact"),
+                weight=ki.get("weight", 0.5),
+                phase=session.current_phase,
+                rationale=ki.get("rationale", ""),
+                conditions=json.dumps(ki.get("conditions", [])),
+            )
+            db.add(item)
+        db.commit()
+    except Exception as e:
+        logger.warning(f"Knowledge extraction failed (non-fatal): {e}")
+
     # Increment question counter
     session.phase_order += 1
     phase = session.current_phase
@@ -289,7 +339,7 @@ async def submit_answer(
 
             completion_msg = (
                 f"🎉 **¡Entrevista completada!**\n\n"
-                f"Has completado las 4 fases de captura NUMA.\n\n"
+                f"Has completado las 5 fases de captura NUMA.\n\n"
                 f"**Resumen:**\n{summary}\n\n"
                 f"El conocimiento capturado se ha guardado y está siendo indexado."
             )
@@ -647,12 +697,22 @@ async def serve_capture():
 @app.get("/{full_path:path}")
 async def serve_frontend(full_path: str):
     """Serve frontend static files or fallback to index.html."""
+    # Return 404 for undefined API routes
+    if full_path.startswith("api/"):
+        from fastapi.responses import JSONResponse
+        return JSONResponse(status_code=404, content={"detail": "Not found"})
+    # Prevent path traversal
     if ".." in full_path or full_path.startswith("/"):
-        return HTMLResponse(content=open(os.path.join(FRONTEND_DIR, "index.html")).read())
+        from fastapi.responses import JSONResponse
+        return JSONResponse(status_code=404, content={"detail": "Invalid path"})
     file_path = os.path.join(FRONTEND_DIR, full_path)
-    if os.path.isfile(file_path) and os.path.realpath(file_path).startswith(os.path.realpath(FRONTEND_DIR)):
-        return HTMLResponse(content=open(file_path).read())
-    return HTMLResponse(content=open(os.path.join(FRONTEND_DIR, "index.html")).read())
+    real_root = os.path.realpath(FRONTEND_DIR)
+    real_path = os.path.realpath(file_path)
+    if os.path.isfile(file_path) and real_path.startswith(real_root):
+        with open(file_path) as f:
+            return HTMLResponse(content=f.read())
+    with open(os.path.join(FRONTEND_DIR, "index.html")) as f:
+        return HTMLResponse(content=f.read())
 
 
 def serve():

@@ -19,7 +19,8 @@ logger = logging.getLogger("numa-capture-llm")
 LLM_API_URL = os.environ.get(
     "NUMA_LLM_URL", "https://api.deepseek.com/v1/chat/completions"
 )
-LLM_API_KEY = os.environ.get("NUMA_LLM_KEY", "")
+# Fall back to common env var names if NUMA_LLM_KEY not set
+LLM_API_KEY = os.environ.get("NUMA_LLM_KEY") or os.environ.get("DEEPSEEK_API_KEY", "")
 LLM_MODEL = os.environ.get("NUMA_LLM_MODEL", "deepseek-chat")  # V4 Flash
 
 DEFAULT_TEMPERATURE = 0.7
