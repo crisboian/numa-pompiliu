@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NUMA Capture — Entrevista de Conocimiento Experto</title>
+<style>
+  /* ─── Reset & Base ─────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg-primary: #0a0a0f;
+    --bg-secondary: #12121a;
+    --bg-card: #1a1a2e;
+    --bg-input: #1e1e32;
+    --border: #2a2a4a;
+    --text-primary: #e8e8f0;
+    --text-secondary: #9090b0;
+    --text-muted: #606080;
+    --accent: #7c3aed;
+    --accent-light: #a78bfa;
+    --accent-glow: rgba(124, 58, 237, 0.3);
+    --green: #22c55e;
+    --amber: #f59e0b;
+    --red: #ef4444;
+    --phase-a: #3b82f6;  /* blue */
+    --phase-b: #f59e0b;  /* amber */
+    --phase-c: #22c55e;  /* green */
+    --phase-d: #a855f7;  /* purple */
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  html { font-size: 16px; }
+  body {
+    font-family: var(--font);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+
+  /* ─── Scrollbar ─────────────────────────────────────── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+  /* ─── Layout ────────────────────────────────────────── */
+  .app { max-width: 800px; margin: 0 auto; padding: 20px 16px; }
+
+  /* ─── Header ─────────────────────────────────────────── */
+  .header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 16px 0; margin-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  .header-logo { font-size: 28px; font-weight: 800; letter-spacing: -1px; }
+  .header-logo span { color: var(--accent-light); }
+  .header-sub { color: var(--text-secondary); font-size: 14px; }
+
+  /* ─── Phase Progress ────────────────────────────────── */
+  .phase-bar {
+    display: flex; gap: 8px; margin-bottom: 24px;
+    padding: 16px; background: var(--bg-secondary);
+    border-radius: var(--radius); border: 1px solid var(--border);
+  }
+  .phase-step {
+    flex: 1; text-align: center; position: relative;
+    padding: 8px 4px; border-radius: var(--radius-sm);
+    font-size: 12px; font-weight: 600;
+    color: var(--text-muted); background: var(--bg-primary);
+    transition: all 0.3s;
+  }
+  .phase-step .phase-num {
+    display: block; font-size: 18px; margin-bottom: 2px;
+  }
+  .phase-step.active {
+    color: var(--text-primary); background: var(--bg-card);
+    box-shadow: 0 0 12px var(--accent-glow);
+  }
+  .phase-step.done {
+    color: var(--green); background: rgba(34, 197, 94, 0.1);
+  }
+  .phase-step.done .phase-num:after { content: ' ✓'; }
+  .phase-step .phase-color {
+    display: block; height: 3px; border-radius: 2px;
+    margin-top: 6px; transition: all 0.3s;
+  }
+  .phase-step.active .phase-color { box-shadow: 0 0 8px currentColor; }
+
+  /* ─── Chat ───────────────────────────────────────────── */
+  .chat-container {
+    background: var(--bg-secondary); border-radius: var(--radius);
+    border: 1px solid var(--border); min-height: 400px;
+    display: flex; flex-direction: column;
+  }
+  .chat-messages {
+    flex: 1; padding: 20px; overflow-y: auto;
+    max-height: 500px;
+  }
+  .message {
+    margin-bottom: 16px; padding: 12px 16px;
+    border-radius: var(--radius-sm);
+    max-width: 85%; animation: fadeIn 0.3s ease;
+    line-height: 1.5;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .message.assistant {
+    background: var(--bg-card); border: 1px solid var(--border);
+    margin-right: auto; align-self: flex-start;
+  }
+  .message.user {
+    background: var(--accent); color: white;
+    margin-left: auto; align-self: flex-end;
+    border: 1px solid var(--accent-light);
+  }
+  .message.system {
+    background: rgba(124, 58, 237, 0.1); border: 1px solid var(--accent);
+    text-align: center; width: 100%; max-width: 100%;
+    font-size: 13px; color: var(--text-secondary);
+  }
+  .message .msg-phase {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    margin-bottom: 4px; opacity: 0.7;
+  }
+  .message .msg-time {
+    font-size: 11px; color: var(--text-muted);
+    margin-top: 6px; text-align: right;
+  }
+
+  /* ─── Input Area ────────────────────────────────────── */
+  .chat-input {
+    display: flex; gap: 8px; padding: 16px 20px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-primary);
+    border-radius: 0 0 var(--radius) var(--radius);
+  }
+  .chat-input textarea {
+    flex: 1; background: var(--bg-input); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 12px 16px;
+    color: var(--text-primary); font-family: var(--font); font-size: 14px;
+    resize: none; min-height: 48px; max-height: 120px;
+    outline: none; transition: border-color 0.2s;
+  }
+  .chat-input textarea:focus { border-color: var(--accent); }
+  .chat-input button {
+    background: var(--accent); color: white; border: none;
+    border-radius: var(--radius-sm); padding: 12px 24px;
+    font-weight: 600; cursor: pointer; transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .chat-input button:hover { background: var(--accent-light); }
+  .chat-input button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ─── Setup Screen ──────────────────────────────────── */
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  .setup-form {
+    background: var(--bg-secondary); border-radius: var(--radius);
+    border: 1px solid var(--border); padding: 32px;
+  }
+  .setup-form h2 {
+    font-size: 22px; margin-bottom: 8px;
+    background: linear-gradient(135deg, var(--accent-light), var(--amber));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .setup-form p {
+    color: var(--text-secondary); margin-bottom: 24px; font-size: 14px;
+  }
+  .form-group { margin-bottom: 16px; }
+  .form-group label {
+    display: block; font-size: 13px; font-weight: 600;
+    color: var(--text-secondary); margin-bottom: 6px;
+  }
+  .form-group input {
+    width: 100%; background: var(--bg-input); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 10px 14px;
+    color: var(--text-primary); font-family: var(--font); font-size: 14px;
+    outline: none; transition: border-color 0.2s;
+  }
+  .form-group input:focus { border-color: var(--accent); }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent-light));
+    color: white; border: none; border-radius: var(--radius-sm);
+    padding: 12px 32px; font-weight: 600; font-size: 15px;
+    cursor: pointer; transition: all 0.2s; width: 100%;
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 20px var(--accent-glow); }
+
+  /* ─── Completion ────────────────────────────────────── */
+  .completion {
+    text-align: center; padding: 48px 24px;
+  }
+  .completion h2 { font-size: 28px; margin-bottom: 12px; }
+  .completion p { color: var(--text-secondary); margin-bottom: 16px; max-width: 500px; margin-left: auto; margin-right: auto; }
+  .completion .stats {
+    display: flex; gap: 24px; justify-content: center; margin: 24px 0;
+  }
+  .completion .stat {
+    text-align: center; padding: 16px 24px;
+    background: var(--bg-card); border-radius: var(--radius);
+    border: 1px solid var(--border);
+  }
+  .completion .stat .num { font-size: 28px; font-weight: 800; color: var(--accent-light); }
+  .completion .stat .label { font-size: 12px; color: var(--text-muted); }
+  .btn-secondary {
+    background: transparent; color: var(--text-primary);
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 10px 20px; font-weight: 600; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent-light); }
+
+  /* ─── Loading ────────────────────────────────────────── */
+  .typing-indicator {
+    display: inline-flex; gap: 4px; padding: 4px 0;
+    align-items: center;
+  }
+  .typing-indicator span {
+    width: 8px; height: 8px; background: var(--text-muted);
+    border-radius: 50%; animation: typing 1.4s infinite;
+  }
+  .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes typing { 0%, 60%, 100% { opacity: 0.3; transform: scale(0.8); } 30% { opacity: 1; transform: scale(1); } }
+
+  /* ─── Responsive ─────────────────────────────────────── */
+  @media (max-width: 600px) {
+    .app { padding: 12px 8px; }
+    .message { max-width: 95%; }
+    .phase-bar { flex-wrap: wrap; }
+    .phase-step { min-width: 80px; }
+    .completion .stats { flex-direction: column; align-items: center; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-logo">NUMA <span>Capture</span></div>
+    <div class="header-sub">Entrevista de Conocimiento Experto</div>
+  </header>
+
+  <!-- Setup Screen -->
+  <div class="screen active" id="screen-setup">
+    <div class="setup-form">
+      <h2>🧠 Captura tu Conocimiento</h2>
+      <p>Este proceso guía a un experto a través de 4 fases para capturar conocimiento tácito antes de que se pierda. La entrevista dura aproximadamente <strong>3.5 horas</strong> en total.</p>
+
+      <div class="form-group">
+        <label>Nombre del experto</label>
+        <input type="text" id="input-name" placeholder="Ej: Pepe García">
+      </div>
+      <div class="form-group">
+        <label>Rol / Puesto</label>
+        <input type="text" id="input-role" placeholder="Ej: Operador Senior">
+      </div>
+      <div class="form-group">
+        <label>Dominio / Área</label>
+        <input type="text" id="input-domain" placeholder="Ej: Seguridad Industrial">
+      </div>
+      <div class="form-group">
+        <label>Organización (opcional)</label>
+        <input type="text" id="input-org" placeholder="Ej: PROPAMSA">
+      </div>
+
+      <button class="btn-primary" onclick="startSession()">Comenzar Entrevista →</button>
+    </div>
+  </div>
+
+  <!-- Interview Screen -->
+  <div class="screen" id="screen-interview">
+    <!-- Phase Progress -->
+    <div class="phase-bar" id="phase-bar">
+      <div class="phase-step" data-phase="A">
+        <span class="phase-num">A</span>
+        Role Mapping
+        <span class="phase-color" style="background:var(--phase-a)"></span>
+      </div>
+      <div class="phase-step" data-phase="B">
+        <span class="phase-num">B</span>
+        Incidentes
+        <span class="phase-color" style="background:var(--phase-b)"></span>
+      </div>
+      <div class="phase-step" data-phase="C">
+        <span class="phase-num">C</span>
+        Verificación
+        <span class="phase-color" style="background:var(--phase-c)"></span>
+      </div>
+      <div class="phase-step" data-phase="D">
+        <span class="phase-num">D</span>
+        Lo No Escrito
+        <span class="phase-color" style="background:var(--phase-d)"></span>
+      </div>
+    </div>
+
+    <!-- Chat -->
+    <div class="chat-container">
+      <div class="chat-messages" id="chat-messages"></div>
+      <div class="chat-input" id="chat-input-area">
+        <textarea id="chat-input" placeholder="Escribe tu respuesta aquí..." rows="1"
+          oninput="autoResize(this)" onkeydown="handleKey(event)"></textarea>
+        <button id="chat-send" onclick="sendAnswer()">Enviar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Completion Screen -->
+  <div class="screen" id="screen-completion">
+    <div class="completion">
+      <div style="font-size: 64px; margin-bottom: 16px;">🏛️</div>
+      <h2>Entrevista Completada</h2>
+      <p>Todo el conocimiento capturado se ha guardado. Ahora forma parte del legado de tu organización.</p>
+      <div class="stats">
+        <div class="stat">
+          <div class="num" id="stat-phases">4</div>
+          <div class="label">Fases</div>
+        </div>
+        <div class="stat">
+          <div class="num" id="stat-items">0</div>
+          <div class="label">Items de conocimiento</div>
+        </div>
+        <div class="stat">
+          <div class="num" id="stat-duration">~3.5h</div>
+          <div class="label">Duración</div>
+        </div>
+      </div>
+      <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+        <button class="btn-secondary" onclick="exportSession()">📥 Exportar JSON</button>
+        <button class="btn-primary" onclick="resetSession()">Nueva Entrevista</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ─── Config ─────────────────────────────────────────────
+  const API = '';  // Same origin, reverse proxy handles it
+  let sessionId = null;
+  let isLoading = false;
+
+  // ─── Auto-resize textarea ─────────────────────────────
+  function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+  }
+
+  function handleKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendAnswer();
+    }
+  }
+
+  // ─── Phase colors ─────────────────────────────────────
+  const phaseColors = { A: '#3b82f6', B: '#f59e0b', C: '#22c55e', D: '#a855f7' };
+  const phaseNames = { A: 'Role Mapping', B: 'Incidentes Críticos', C: 'Verificación Inversa', D: 'Lo No Escrito' };
+
+  // ─── Create session ───────────────────────────────────
+  async function startSession() {
+    const name = document.getElementById('input-name').value.trim() || 'Experto';
+    const role = document.getElementById('input-role').value.trim() || 'Senior';
+    const domain = document.getElementById('input-domain').value.trim() || 'General';
+    const org = document.getElementById('input-org').value.trim();
+
+    try {
+      const res = await fetch(`${API}/api/sessions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          expert_name: name,
+          expert_role: role,
+          domain: domain,
+          organization: org,
+        }),
+      });
+      const data = await res.json();
+      sessionId = data.id;
+
+      // Start interview
+      await startInterview();
+    } catch (e) {
+      alert('Error al crear la sesión: ' + e.message);
+    }
+  }
+
+  async function startInterview() {
+    try {
+      const res = await fetch(`${API}/api/sessions/${sessionId}/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+      const data = await res.json();
+      switchScreen('interview');
+      renderMessages(data.messages || []);
+      updatePhaseBar(data.current_phase, data);
+      enableInput(true);
+    } catch (e) {
+      alert('Error al iniciar: ' + e.message);
+    }
+  }
+
+  // ─── Send answer ──────────────────────────────────────
+  async function sendAnswer() {
+    const input = document.getElementById('chat-input');
+    const text = input.value.trim();
+    if (!text || isLoading) return;
+
+    // Show user message immediately
+    addMessage({ role: 'user', content: text, phase: '' });
+    input.value = '';
+    input.style.height = 'auto';
+    enableInput(false);
+    showTyping();
+
+    try {
+      const res = await fetch(`${API}/api/sessions/${sessionId}/answer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answer: text }),
+      });
+      const data = await res.json();
+      removeTyping();
+
+      if (data.status === 'completed') {
+        showCompletion(data);
+        return;
+      }
+
+      // Show assistant response (last message)
+      const msgs = data.messages || [];
+      const lastMsg = msgs[msgs.length - 1];
+      if (lastMsg && lastMsg.role === 'assistant') {
+        addMessage(lastMsg);
+      }
+
+      // Check for phase transition
+      updatePhaseBar(data.current_phase, data);
+      enableInput(true);
+    } catch (e) {
+      removeTyping();
+      addMessage({ role: 'assistant', content: '⚠️ Error de conexión. Intenta de nuevo.', phase: '' });
+      enableInput(true);
+    }
+  }
+
+  // ─── Render messages ──────────────────────────────────
+  function renderMessages(messages) {
+    const container = document.getElementById('chat-messages');
+    container.innerHTML = '';
+    messages.forEach(m => {
+      if (m.role === 'assistant') container.appendChild(createMessageEl(m));
+    });
+    scrollToBottom();
+  }
+
+  function addMessage(msg) {
+    const container = document.getElementById('chat-messages');
+    container.appendChild(createMessageEl(msg));
+    scrollToBottom();
+  }
+
+  function createMessageEl(msg) {
+    const el = document.createElement('div');
+    el.className = `message ${msg.role}`;
+
+    let html = '';
+    if (msg.phase) {
+      const color = phaseColors[msg.phase] || '#7c3aed';
+      html += `<div class="msg-phase" style="color:${color}">Fase ${msg.phase} · ${phaseNames[msg.phase] || ''}</div>`;
+    }
+    // Render markdown-like content
+    html += `<div class="msg-content">${renderContent(msg.content)}</div>`;
+    el.innerHTML = html;
+    return el;
+  }
+
+  function renderContent(text) {
+    if (!text) return '';
+    // Escape HTML first
+    let s = text
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      // Bold
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      // Italic
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      // Code blocks
+      .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+      // Inline code
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      // New lines
+      .replace(/\n/g, '<br>');
+    return s;
+  }
+
+  function showTyping() {
+    const container = document.getElementById('chat-messages');
+    const el = document.createElement('div');
+    el.className = 'message assistant';
+    el.id = 'typing-indicator';
+    el.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
+    container.appendChild(el);
+    scrollToBottom();
+  }
+
+  function removeTyping() {
+    const el = document.getElementById('typing-indicator');
+    if (el) el.remove();
+  }
+
+  function scrollToBottom() {
+    const container = document.getElementById('chat-messages');
+    container.scrollTop = container.scrollHeight;
+  }
+
+  // ─── Phase progress ───────────────────────────────────
+  function updatePhaseBar(currentPhase, data) {
+    document.querySelectorAll('.phase-step').forEach(el => {
+      const phase = el.dataset.phase;
+      el.classList.remove('active', 'done');
+
+      const phaseOrder = ['A', 'B', 'C', 'D'];
+      const currentIdx = phaseOrder.indexOf(currentPhase);
+      const thisIdx = phaseOrder.indexOf(phase);
+
+      if (thisIdx < currentIdx) {
+        el.classList.add('done');
+      } else if (phase === currentPhase && data.status !== 'completed') {
+        el.classList.add('active');
+      }
+    });
+  }
+
+  // ─── Switch screens ───────────────────────────────────
+  function switchScreen(name) {
+    document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+    document.getElementById(`screen-${name}`).classList.add('active');
+  }
+
+  function enableInput(enabled) {
+    isLoading = !enabled;
+    document.getElementById('chat-input').disabled = !enabled;
+    document.getElementById('chat-send').disabled = !enabled;
+    if (enabled) document.getElementById('chat-input').focus();
+  }
+
+  // ─── Completion ────────────────────────────────────────
+  async function showCompletion(data) {
+    switchScreen('completion');
+    document.getElementById('stat-items').textContent = (data.knowledge_items || []).length;
+
+    // Fetch export for stats
+    try {
+      const res = await fetch(`${API}/api/sessions/${sessionId}/export`);
+      const exportData = await res.json();
+      document.getElementById('stat-items').textContent = (exportData.knowledge_items || []).length;
+    } catch (e) {}
+  }
+
+  async function exportSession() {
+    try {
+      const res = await fetch(`${API}/api/sessions/${sessionId}/export`);
+      const data = await res.json();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `numa-capture-${sessionId.slice(0, 8)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert('Error al exportar: ' + e.message);
+    }
+  }
+
+  function resetSession() {
+    sessionId = null;
+    document.getElementById('chat-messages').innerHTML = '';
+    switchScreen('setup');
+    document.getElementById('input-name').value = '';
+    document.getElementById('input-role').value = '';
+    document.getElementById('input-domain').value = '';
+    document.getElementById('input-org').value = '';
+  }
+</script>
+
+</body>
+</html>
