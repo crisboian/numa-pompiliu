@@ -79,6 +79,14 @@
     transition: color 0.25s ease;
   }
   .nav-links a:hover { color: var(--gold); }
+  .nav-cta {
+    background: var(--gold);
+    color: var(--bg) !important;
+    padding: 0.4rem 1rem;
+    border-radius: 6px;
+    font-weight: 600;
+  }
+  .nav-cta:hover { background: var(--gold-bright) !important; color: var(--bg) !important; }
 
   /* Container */
   .container {
@@ -661,7 +669,9 @@
     <a href="#protocols">Protocols</a>
     <a href="#results">Results</a>
     <a href="#architecture">Architecture</a>
+    <a href="#try">Try It</a>
     <a href="#citation">Cite</a>
+    <a href="/capture" class="nav-cta">Launch Capture →</a>
   </div>
 </nav>
 
@@ -853,6 +863,40 @@
         </div>
       </div>
       <div class="pipeline-legend">↻ Maintenance feedback loops back to Capture · Continuous knowledge evolution</div>
+    </div>
+  </div>
+</section>
+
+<!-- TRY CAPTURE -->
+<section id="try" class="protocols-section">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-eyebrow">06 · Try It</div>
+      <h2 class="section-title">Capture knowledge <em>right now</em>.</h2>
+      <p class="section-lead">
+        NUMA Capture is a self-service web tool that guides an expert through the 4-phase interview.
+        No installation, no setup — just a browser.
+      </p>
+    </div>
+
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:1.5rem; margin:3rem 0;">
+      <div class="stat-card reveal" style="text-align:center;">
+        <div style="font-size:2.5rem; margin-bottom:0.8rem;">🧠</div>
+        <div class="stat-label"><strong>Real LLM Interviewer</strong><br><span style="color:var(--text-dim);font-size:0.85rem;">DeepSeek V4 Flash genera preguntas contextuales basadas en tus respuestas</span></div>
+      </div>
+      <div class="stat-card reveal" style="text-align:center;">
+        <div style="font-size:2.5rem; margin-bottom:0.8rem;">📋</div>
+        <div class="stat-label"><strong>4 Fases · ~3.5h</strong><br><span style="color:var(--text-dim);font-size:0.85rem;">Desde mapeo de rol hasta conocimiento no escrito — progresión automática</span></div>
+      </div>
+      <div class="stat-card reveal" style="text-align:center;">
+        <div style="font-size:2.5rem; margin-bottom:0.8rem;">📤</div>
+        <div class="stat-label"><strong>Auto-index a RAG</strong><br><span style="color:var(--text-dim);font-size:0.85rem;">Al completar, los items de conocimiento se indexan automáticamente en ChromaDB</span></div>
+      </div>
+    </div>
+
+    <div class="reveal" style="text-align:center; margin-top:2rem;">
+      <a href="/capture" style="display:inline-block; background:linear-gradient(135deg, var(--gold), var(--gold-bright)); color:var(--bg); padding:1rem 3rem; border-radius:10px; font-weight:700; font-size:1.2rem; text-decoration:none; letter-spacing:0.05em; transition:all 0.3s ease; box-shadow:0 4px 30px rgba(201,169,78,0.3);" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 40px rgba(201,169,78,0.4)';" onmouseout="this.style.transform='';this.style.boxShadow='0 4px 30px rgba(201,169,78,0.3)';">Start NUMA Capture →</a>
+      <p style="color:var(--text-dim); font-family:var(--mono); font-size:0.75rem; margin-top:1rem; letter-spacing:0.1em;">No requiere registro · Datos guardados localmente</p>
     </div>
   </div>
 </section>

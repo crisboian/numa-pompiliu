@@ -1,592 +1,974 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NUMA Capture — Entrevista de Conocimiento Experto</title>
+<title>NUMA — Perpetuating Expert Knowledge</title>
+<meta name="description" content="NUMA: Perpetuating Expert Knowledge through LLM-Guided Elicitation and Graph-Grounded Retrieval.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230A0E1A'/%3E%3Ctext x='50%25' y='54%25' text-anchor='middle' font-family='Georgia,serif' font-size='34' font-weight='700' fill='%23C9A94E' dominant-baseline='middle'%3EN%3C/text%3E%3C/svg%3E">
 <style>
-  /* ─── Reset & Base ─────────────────────────────────── */
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
-    --bg-primary: #0a0a0f;
-    --bg-secondary: #12121a;
-    --bg-card: #1a1a2e;
-    --bg-input: #1e1e32;
-    --border: #2a2a4a;
-    --text-primary: #e8e8f0;
-    --text-secondary: #9090b0;
-    --text-muted: #606080;
-    --accent: #7c3aed;
-    --accent-light: #a78bfa;
-    --accent-glow: rgba(124, 58, 237, 0.3);
-    --green: #22c55e;
-    --amber: #f59e0b;
-    --red: #ef4444;
-    --phase-a: #3b82f6;  /* blue */
-    --phase-b: #f59e0b;  /* amber */
-    --phase-c: #22c55e;  /* green */
-    --phase-d: #a855f7;  /* purple */
-    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    --radius: 12px;
-    --radius-sm: 8px;
+    --bg: #0A0E1A;
+    --bg-elevated: #0F1525;
+    --bg-card: rgba(20, 27, 48, 0.55);
+    --border: rgba(201, 169, 78, 0.18);
+    --border-strong: rgba(201, 169, 78, 0.45);
+    --gold: #C9A94E;
+    --gold-bright: #E8C674;
+    --gold-soft: rgba(201, 169, 78, 0.08);
+    --text: #E8EAF0;
+    --text-muted: #9AA3B8;
+    --text-dim: #6B7488;
+    --serif: 'Cormorant Garamond', 'Playfair Display', Georgia, 'Times New Roman', serif;
+    --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
   }
-  html { font-size: 16px; }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
   body {
-    font-family: var(--font);
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    min-height: 100vh;
-    line-height: 1.6;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.65;
+    font-size: 16px;
+    overflow-x: hidden;
+    background-image:
+      radial-gradient(circle at 15% 10%, rgba(201, 169, 78, 0.06) 0%, transparent 35%),
+      radial-gradient(circle at 85% 80%, rgba(201, 169, 78, 0.04) 0%, transparent 40%);
+    background-attachment: fixed;
   }
 
-  /* ─── Scrollbar ─────────────────────────────────────── */
-  ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-  ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+  ::selection { background: var(--gold); color: var(--bg); }
 
-  /* ─── Layout ────────────────────────────────────────── */
-  .app { max-width: 800px; margin: 0 auto; padding: 20px 16px; }
-
-  /* ─── Header ─────────────────────────────────────────── */
-  .header {
-    display: flex; align-items: center; gap: 12px;
-    padding: 16px 0; margin-bottom: 24px;
+  /* Navigation */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    padding: 1.25rem 2rem;
+    background: rgba(10, 14, 26, 0.75);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: padding 0.3s ease;
   }
-  .header-logo { font-size: 28px; font-weight: 800; letter-spacing: -1px; }
-  .header-logo span { color: var(--accent-light); }
-  .header-sub { color: var(--text-secondary); font-size: 14px; }
 
-  /* ─── Phase Progress ────────────────────────────────── */
-  .phase-bar {
-    display: flex; gap: 8px; margin-bottom: 24px;
-    padding: 16px; background: var(--bg-secondary);
-    border-radius: var(--radius); border: 1px solid var(--border);
-  }
-  .phase-step {
-    flex: 1; text-align: center; position: relative;
-    padding: 8px 4px; border-radius: var(--radius-sm);
-    font-size: 12px; font-weight: 600;
-    color: var(--text-muted); background: var(--bg-primary);
-    transition: all 0.3s;
-  }
-  .phase-step .phase-num {
-    display: block; font-size: 18px; margin-bottom: 2px;
-  }
-  .phase-step.active {
-    color: var(--text-primary); background: var(--bg-card);
-    box-shadow: 0 0 12px var(--accent-glow);
-  }
-  .phase-step.done {
-    color: var(--green); background: rgba(34, 197, 94, 0.1);
-  }
-  .phase-step.done .phase-num:after { content: ' ✓'; }
-  .phase-step .phase-color {
-    display: block; height: 3px; border-radius: 2px;
-    margin-top: 6px; transition: all 0.3s;
-  }
-  .phase-step.active .phase-color { box-shadow: 0 0 8px currentColor; }
+  nav.scrolled { padding: 0.85rem 2rem; }
 
-  /* ─── Chat ───────────────────────────────────────────── */
-  .chat-container {
-    background: var(--bg-secondary); border-radius: var(--radius);
-    border: 1px solid var(--border); min-height: 400px;
-    display: flex; flex-direction: column;
+  .nav-logo {
+    font-family: var(--serif);
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--gold);
+    letter-spacing: 0.15em;
   }
-  .chat-messages {
-    flex: 1; padding: 20px; overflow-y: auto;
-    max-height: 500px;
+
+  .nav-links { display: flex; gap: 2rem; }
+  .nav-links a {
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    transition: color 0.25s ease;
   }
-  .message {
-    margin-bottom: 16px; padding: 12px 16px;
-    border-radius: var(--radius-sm);
-    max-width: 85%; animation: fadeIn 0.3s ease;
+  .nav-links a:hover { color: var(--gold); }
+  .nav-cta {
+    background: var(--gold);
+    color: var(--bg) !important;
+    padding: 0.4rem 1rem;
+    border-radius: 6px;
+    font-weight: 600;
+  }
+  .nav-cta:hover { background: var(--gold-bright) !important; color: var(--bg) !important; }
+
+  /* Container */
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+  }
+
+  /* Hero */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    position: relative;
+    padding: 8rem 2rem 4rem;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at center, rgba(201, 169, 78, 0.08) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  .hero-eyebrow {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--gold);
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    margin-bottom: 2rem;
+    opacity: 0;
+    animation: fadeUp 0.9s ease 0.1s forwards;
+  }
+
+  .hero-eyebrow::before, .hero-eyebrow::after {
+    content: '— ';
+    color: var(--gold);
+    opacity: 0.5;
+  }
+  .hero-eyebrow::after { content: ' —'; }
+
+  .hero-logo {
+    font-family: var(--serif);
+    font-size: clamp(5rem, 18vw, 13rem);
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    line-height: 1;
+    background: linear-gradient(180deg, var(--gold-bright) 0%, var(--gold) 50%, #8B7530 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 1.5rem;
+    opacity: 0;
+    animation: fadeUp 1s ease 0.3s forwards;
+    text-shadow: 0 0 80px rgba(201, 169, 78, 0.2);
+  }
+
+  .hero-subtitle {
+    font-family: var(--serif);
+    font-size: clamp(1.1rem, 2.3vw, 1.6rem);
+    font-weight: 400;
+    font-style: italic;
+    color: var(--text);
+    max-width: 780px;
+    line-height: 1.5;
+    margin-bottom: 3rem;
+    opacity: 0;
+    animation: fadeUp 1s ease 0.5s forwards;
+  }
+
+  .hero-subtitle .keyword { color: var(--gold); font-style: normal; font-weight: 500; }
+
+  .hero-meta {
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    opacity: 0;
+    animation: fadeUp 1s ease 0.7s forwards;
+  }
+
+  .hero-meta span { display: flex; align-items: center; gap: 0.5rem; }
+  .hero-meta .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--gold);
+    box-shadow: 0 0 8px var(--gold);
+  }
+
+  .scroll-hint {
+    position: absolute;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    opacity: 0;
+    animation: fadeIn 1s ease 1.5s forwards, bounce 2s ease-in-out 2s infinite;
+  }
+
+  /* Section base */
+  section {
+    padding: 7rem 0;
+    position: relative;
+  }
+
+  .section-eyebrow {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--gold);
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+  }
+
+  .section-eyebrow::before {
+    content: '';
+    width: 30px;
+    height: 1px;
+    background: var(--gold);
+  }
+
+  .section-title {
+    font-family: var(--serif);
+    font-size: clamp(2rem, 4.5vw, 3.2rem);
+    font-weight: 600;
+    line-height: 1.15;
+    margin-bottom: 2rem;
+    color: var(--text);
+  }
+
+  .section-title em { color: var(--gold); font-style: italic; }
+
+  .section-lead {
+    font-family: var(--serif);
+    font-size: 1.25rem;
+    color: var(--text-muted);
+    max-width: 720px;
+    line-height: 1.55;
+    margin-bottom: 4rem;
+  }
+
+  /* Problem section */
+  .problem-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-top: 3rem;
+  }
+
+  .stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2.5rem 2rem;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    transition: all 0.35s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .stat-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--border-strong);
+    background: rgba(20, 27, 48, 0.75);
+  }
+  .stat-card:hover::before { opacity: 1; }
+
+  .stat-number {
+    font-family: var(--serif);
+    font-size: 3.5rem;
+    font-weight: 700;
+    color: var(--gold);
+    line-height: 1;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: baseline;
+    gap: 0.3rem;
+  }
+  .stat-number .unit {
+    font-size: 1.5rem;
+    color: var(--gold-bright);
+    opacity: 0.8;
+  }
+
+  .stat-label {
+    font-size: 0.95rem;
+    color: var(--text-muted);
     line-height: 1.5;
   }
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-  .message.assistant {
-    background: var(--bg-card); border: 1px solid var(--border);
-    margin-right: auto; align-self: flex-start;
-  }
-  .message.user {
-    background: var(--accent); color: white;
-    margin-left: auto; align-self: flex-end;
-    border: 1px solid var(--accent-light);
-  }
-  .message.system {
-    background: rgba(124, 58, 237, 0.1); border: 1px solid var(--accent);
-    text-align: center; width: 100%; max-width: 100%;
-    font-size: 13px; color: var(--text-secondary);
-  }
-  .message .msg-phase {
-    font-size: 11px; font-weight: 600; text-transform: uppercase;
-    margin-bottom: 4px; opacity: 0.7;
-  }
-  .message .msg-time {
-    font-size: 11px; color: var(--text-muted);
-    margin-top: 6px; text-align: right;
-  }
 
-  /* ─── Input Area ────────────────────────────────────── */
-  .chat-input {
-    display: flex; gap: 8px; padding: 16px 20px;
+  .stat-source {
+    margin-top: 1rem;
+    padding-top: 1rem;
     border-top: 1px solid var(--border);
-    background: var(--bg-primary);
-    border-radius: 0 0 var(--radius) var(--radius);
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
   }
-  .chat-input textarea {
-    flex: 1; background: var(--bg-input); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); padding: 12px 16px;
-    color: var(--text-primary); font-family: var(--font); font-size: 14px;
-    resize: none; min-height: 48px; max-height: 120px;
-    outline: none; transition: border-color 0.2s;
-  }
-  .chat-input textarea:focus { border-color: var(--accent); }
-  .chat-input button {
-    background: var(--accent); color: white; border: none;
-    border-radius: var(--radius-sm); padding: 12px 24px;
-    font-weight: 600; cursor: pointer; transition: all 0.2s;
-    white-space: nowrap;
-  }
-  .chat-input button:hover { background: var(--accent-light); }
-  .chat-input button:disabled { opacity: 0.4; cursor: not-allowed; }
 
-  /* ─── Setup Screen ──────────────────────────────────── */
-  .screen { display: none; }
-  .screen.active { display: block; }
+  /* Protocols */
+  .protocols-section {
+    background: linear-gradient(180deg, transparent, rgba(15, 21, 37, 0.4), transparent);
+  }
 
-  .setup-form {
-    background: var(--bg-secondary); border-radius: var(--radius);
-    border: 1px solid var(--border); padding: 32px;
+  .protocol-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-top: 3rem;
   }
-  .setup-form h2 {
-    font-size: 22px; margin-bottom: 8px;
-    background: linear-gradient(135deg, var(--accent-light), var(--amber));
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-  }
-  .setup-form p {
-    color: var(--text-secondary); margin-bottom: 24px; font-size: 14px;
-  }
-  .form-group { margin-bottom: 16px; }
-  .form-group label {
-    display: block; font-size: 13px; font-weight: 600;
-    color: var(--text-secondary); margin-bottom: 6px;
-  }
-  .form-group input {
-    width: 100%; background: var(--bg-input); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); padding: 10px 14px;
-    color: var(--text-primary); font-family: var(--font); font-size: 14px;
-    outline: none; transition: border-color 0.2s;
-  }
-  .form-group input:focus { border-color: var(--accent); }
-  .btn-primary {
-    background: linear-gradient(135deg, var(--accent), var(--accent-light));
-    color: white; border: none; border-radius: var(--radius-sm);
-    padding: 12px 32px; font-weight: 600; font-size: 15px;
-    cursor: pointer; transition: all 0.2s; width: 100%;
-  }
-  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 20px var(--accent-glow); }
 
-  /* ─── Completion ────────────────────────────────────── */
-  .completion {
-    text-align: center; padding: 48px 24px;
-  }
-  .completion h2 { font-size: 28px; margin-bottom: 12px; }
-  .completion p { color: var(--text-secondary); margin-bottom: 16px; max-width: 500px; margin-left: auto; margin-right: auto; }
-  .completion .stats {
-    display: flex; gap: 24px; justify-content: center; margin: 24px 0;
-  }
-  .completion .stat {
-    text-align: center; padding: 16px 24px;
-    background: var(--bg-card); border-radius: var(--radius);
+  .protocol {
+    background: var(--bg-card);
     border: 1px solid var(--border);
-  }
-  .completion .stat .num { font-size: 28px; font-weight: 800; color: var(--accent-light); }
-  .completion .stat .label { font-size: 12px; color: var(--text-muted); }
-  .btn-secondary {
-    background: transparent; color: var(--text-primary);
-    border: 1px solid var(--border); border-radius: var(--radius-sm);
-    padding: 10px 20px; font-weight: 600; cursor: pointer;
-    transition: all 0.2s;
-  }
-  .btn-secondary:hover { border-color: var(--accent); color: var(--accent-light); }
-
-  /* ─── Loading ────────────────────────────────────────── */
-  .typing-indicator {
-    display: inline-flex; gap: 4px; padding: 4px 0;
+    border-radius: 12px;
+    padding: 2rem 2.5rem;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 2rem;
     align-items: center;
+    transition: all 0.35s ease;
+    cursor: default;
   }
-  .typing-indicator span {
-    width: 8px; height: 8px; background: var(--text-muted);
-    border-radius: 50%; animation: typing 1.4s infinite;
-  }
-  .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
-  .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
-  @keyframes typing { 0%, 60%, 100% { opacity: 0.3; transform: scale(0.8); } 30% { opacity: 1; transform: scale(1); } }
 
-  /* ─── Responsive ─────────────────────────────────────── */
-  @media (max-width: 600px) {
-    .app { padding: 12px 8px; }
-    .message { max-width: 95%; }
-    .phase-bar { flex-wrap: wrap; }
-    .phase-step { min-width: 80px; }
-    .completion .stats { flex-direction: column; align-items: center; }
+  .protocol:hover {
+    border-color: var(--border-strong);
+    transform: translateX(4px);
+    background: rgba(20, 27, 48, 0.75);
+  }
+
+  .protocol-num {
+    font-family: var(--serif);
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--gold);
+    font-style: italic;
+    min-width: 60px;
+    line-height: 1;
+    opacity: 0.85;
+  }
+
+  .protocol-content h3 {
+    font-family: var(--serif);
+    font-size: 1.6rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 0.4rem;
+  }
+  .protocol-content p {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    line-height: 1.55;
+  }
+
+  .protocol-metric {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--gold);
+    background: var(--gold-soft);
+    border: 1px solid var(--border);
+    padding: 0.6rem 1rem;
+    border-radius: 6px;
+    white-space: nowrap;
+    letter-spacing: 0.05em;
+  }
+
+  /* Results */
+  .results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.5rem;
+    margin-top: 3rem;
+  }
+
+  .result-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2.5rem 2rem;
+    text-align: center;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    transition: all 0.35s ease;
+    position: relative;
+  }
+
+  .result-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--border-strong);
+    box-shadow: 0 20px 40px -20px rgba(201, 169, 78, 0.15);
+  }
+
+  .result-value {
+    font-family: var(--serif);
+    font-size: 3rem;
+    font-weight: 700;
+    background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    line-height: 1;
+    margin-bottom: 0.8rem;
+  }
+
+  .result-label {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    line-height: 1.4;
+  }
+
+  /* Architecture diagram */
+  .architecture {
+    margin-top: 3rem;
+    padding: 3rem 2rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    overflow-x: auto;
+  }
+
+  .pipeline {
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    gap: 0.5rem;
+    min-width: 720px;
+    margin: 0 auto;
+  }
+
+  .pipeline-step {
+    flex: 1;
+    background: linear-gradient(180deg, rgba(201, 169, 78, 0.04), transparent);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.5rem 1rem;
+    text-align: center;
+    transition: all 0.3s ease;
+    position: relative;
+    min-width: 110px;
+  }
+
+  .pipeline-step:hover {
+    background: linear-gradient(180deg, rgba(201, 169, 78, 0.12), rgba(201, 169, 78, 0.02));
+    border-color: var(--border-strong);
+    transform: translateY(-3px);
+  }
+
+  .pipeline-icon {
+    font-family: var(--serif);
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--gold);
+    margin-bottom: 0.6rem;
+    font-style: italic;
+  }
+
+  .pipeline-name {
+    font-family: var(--serif);
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 0.4rem;
+  }
+
+  .pipeline-desc {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+    line-height: 1.4;
+  }
+
+  .pipeline-arrow {
+    display: flex;
+    align-items: center;
+    color: var(--gold);
+    font-size: 1.5rem;
+    opacity: 0.5;
+    min-width: 20px;
+    justify-content: center;
+  }
+
+  .pipeline-legend {
+    margin-top: 2rem;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+  }
+
+  /* Citation */
+  .citation-block {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem;
+    margin-top: 2rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .citation-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .citation-label {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--gold);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+
+  .copy-btn {
+    background: var(--gold-soft);
+    border: 1px solid var(--border);
+    color: var(--gold);
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    cursor: pointer;
+    letter-spacing: 0.05em;
+    transition: all 0.25s ease;
+  }
+
+  .copy-btn:hover {
+    background: rgba(201, 169, 78, 0.15);
+    border-color: var(--border-strong);
+    color: var(--gold-bright);
+  }
+
+  .copy-btn.copied {
+    background: var(--gold);
+    color: var(--bg);
+    border-color: var(--gold);
+  }
+
+  .citation-code {
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    color: var(--text);
+    line-height: 1.7;
+    overflow-x: auto;
+    white-space: pre;
+    padding: 0;
+  }
+
+  .citation-code .key { color: var(--gold); }
+  .citation-code .field { color: #7BA7C6; }
+  .citation-code .value { color: var(--text); }
+
+  /* Footer */
+  footer {
+    padding: 4rem 2rem 3rem;
+    border-top: 1px solid var(--border);
+    text-align: center;
+    background: rgba(10, 14, 26, 0.5);
+  }
+
+  .footer-logo {
+    font-family: var(--serif);
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--gold);
+    letter-spacing: 0.2em;
+    margin-bottom: 1rem;
+  }
+
+  .footer-text {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .footer-text a {
+    color: var(--gold);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.25s;
+  }
+  .footer-text a:hover { border-bottom-color: var(--gold); }
+
+  .footer-meta {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    letter-spacing: 0.15em;
+    margin-top: 1.5rem;
+  }
+
+  /* Animations */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes bounce {
+    0%, 100% { transform: translate(-50%, 0); }
+    50% { transform: translate(-50%, -8px); }
+  }
+
+  .reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.8s ease, transform 0.8s ease;
+  }
+
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    nav { padding: 1rem; }
+    .nav-links { display: none; }
+    .container { padding: 0 1.25rem; }
+    section { padding: 5rem 0; }
+    .protocol {
+      grid-template-columns: 1fr;
+      gap: 1rem;
+      padding: 1.75rem;
+      text-align: center;
+    }
+    .protocol-num { margin: 0 auto; }
+    .protocol-metric { justify-self: center; }
+    .hero { padding-top: 6rem; }
   }
 </style>
 </head>
 <body>
 
-<div class="app" id="app">
-
-  <!-- Header -->
-  <header class="header">
-    <div class="header-logo">NUMA <span>Capture</span></div>
-    <div class="header-sub">Entrevista de Conocimiento Experto</div>
-  </header>
-
-  <!-- Setup Screen -->
-  <div class="screen active" id="screen-setup">
-    <div class="setup-form">
-      <h2>🧠 Captura tu Conocimiento</h2>
-      <p>Este proceso guía a un experto a través de 4 fases para capturar conocimiento tácito antes de que se pierda. La entrevista dura aproximadamente <strong>3.5 horas</strong> en total.</p>
-
-      <div class="form-group">
-        <label>Nombre del experto</label>
-        <input type="text" id="input-name" placeholder="Ej: Pepe García">
-      </div>
-      <div class="form-group">
-        <label>Rol / Puesto</label>
-        <input type="text" id="input-role" placeholder="Ej: Operador Senior">
-      </div>
-      <div class="form-group">
-        <label>Dominio / Área</label>
-        <input type="text" id="input-domain" placeholder="Ej: Seguridad Industrial">
-      </div>
-      <div class="form-group">
-        <label>Organización (opcional)</label>
-        <input type="text" id="input-org" placeholder="Ej: PROPAMSA">
-      </div>
-
-      <button class="btn-primary" onclick="startSession()">Comenzar Entrevista →</button>
-    </div>
+<nav id="nav">
+  <div class="nav-logo">NUMA</div>
+  <div class="nav-links">
+    <a href="#problem">Problem</a>
+    <a href="#protocols">Protocols</a>
+    <a href="#results">Results</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#try">Try It</a>
+    <a href="#citation">Cite</a>
+    <a href="/capture" class="nav-cta">Launch Capture →</a>
   </div>
+</nav>
 
-  <!-- Interview Screen -->
-  <div class="screen" id="screen-interview">
-    <!-- Phase Progress -->
-    <div class="phase-bar" id="phase-bar">
-      <div class="phase-step" data-phase="A">
-        <span class="phase-num">A</span>
-        Role Mapping
-        <span class="phase-color" style="background:var(--phase-a)"></span>
-      </div>
-      <div class="phase-step" data-phase="B">
-        <span class="phase-num">B</span>
-        Incidentes
-        <span class="phase-color" style="background:var(--phase-b)"></span>
-      </div>
-      <div class="phase-step" data-phase="C">
-        <span class="phase-num">C</span>
-        Verificación
-        <span class="phase-color" style="background:var(--phase-c)"></span>
-      </div>
-      <div class="phase-step" data-phase="D">
-        <span class="phase-num">D</span>
-        Lo No Escrito
-        <span class="phase-color" style="background:var(--phase-d)"></span>
-      </div>
+<!-- HERO -->
+<header class="hero">
+  <div class="hero-eyebrow">A Research Protocol</div>
+  <h1 class="hero-logo">NUMA</h1>
+  <p class="hero-subtitle">
+    Perpetuating <span class="keyword">expert knowledge</span> through
+    <span class="keyword">LLM-guided elicitation</span> and
+    <span class="keyword">graph-grounded retrieval</span>.
+  </p>
+  <div class="hero-meta">
+    <span><span class="dot"></span>Independent Research</span>
+    <span><span class="dot"></span>5 Protocols</span>
+    <span><span class="dot"></span>Open Source · MIT</span>
+  </div>
+  <div class="scroll-hint">SCROLL ↓</div>
+</header>
+
+<!-- PROBLEM -->
+<section id="problem">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-eyebrow">01 · The Problem</div>
+      <h2 class="section-title">Tacit expertise is <em>disappearing</em>, and we have no protocol to preserve it.</h2>
+      <p class="section-lead">
+        Decades of irreplaceable knowledge walk out the door each year. Organizations rely on outdated documentation,
+        siloed wikis, and informal mentoring — none of which scale to the demographic shift now underway.
+      </p>
     </div>
 
-    <!-- Chat -->
-    <div class="chat-container">
-      <div class="chat-messages" id="chat-messages"></div>
-      <div class="chat-input" id="chat-input-area">
-        <textarea id="chat-input" placeholder="Escribe tu respuesta aquí..." rows="1"
-          oninput="autoResize(this)" onkeydown="handleKey(event)"></textarea>
-        <button id="chat-send" onclick="sendAnswer()">Enviar</button>
+    <div class="problem-grid">
+      <div class="stat-card reveal">
+        <div class="stat-number">75<span class="unit">%</span></div>
+        <div class="stat-label">of organizations lack a formal knowledge-capture strategy for departing experts.</div>
+        <div class="stat-source">Industry surveys · 2023–2024</div>
+      </div>
+      <div class="stat-card reveal">
+        <div class="stat-number">1.2<span class="unit">M</span></div>
+        <div class="stat-label">retirees per year in Spain alone — institutional memory exits with them.</div>
+        <div class="stat-source">INE projections · 2025–2035</div>
+      </div>
+      <div class="stat-card reveal">
+        <div class="stat-number">365<span class="unit">B€</span></div>
+        <div class="stat-label">estimated annual loss across knowledge-intensive sectors in the EU.</div>
+        <div class="stat-source">Economic impact analysis</div>
       </div>
     </div>
   </div>
+</section>
 
-  <!-- Completion Screen -->
-  <div class="screen" id="screen-completion">
-    <div class="completion">
-      <div style="font-size: 64px; margin-bottom: 16px;">🏛️</div>
-      <h2>Entrevista Completada</h2>
-      <p>Todo el conocimiento capturado se ha guardado. Ahora forma parte del legado de tu organización.</p>
-      <div class="stats">
-        <div class="stat">
-          <div class="num" id="stat-phases">4</div>
-          <div class="label">Fases</div>
+<!-- PROTOCOLS -->
+<section id="protocols" class="protocols-section">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-eyebrow">02 · The Method</div>
+      <h2 class="section-title">Five protocols, <em>one continuous cycle</em>.</h2>
+      <p class="section-lead">
+        NUMA structures expert knowledge transfer as a reproducible pipeline — from initial elicitation
+        through long-term maintenance, every step is specified and measurable.
+      </p>
+    </div>
+
+    <div class="protocol-list">
+      <div class="protocol reveal">
+        <div class="protocol-num">I</div>
+        <div class="protocol-content">
+          <h3>Capture</h3>
+          <p>A structured 3.5-hour LLM-guided interview elicits tacit knowledge through adaptive questioning.</p>
         </div>
-        <div class="stat">
-          <div class="num" id="stat-items">0</div>
-          <div class="label">Items de conocimiento</div>
-        </div>
-        <div class="stat">
-          <div class="num" id="stat-duration">~3.5h</div>
-          <div class="label">Duración</div>
-        </div>
+        <div class="protocol-metric">3.5h interview</div>
       </div>
-      <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
-        <button class="btn-secondary" onclick="exportSession()">📥 Exportar JSON</button>
-        <button class="btn-primary" onclick="resetSession()">Nueva Entrevista</button>
+
+      <div class="protocol reveal">
+        <div class="protocol-num">II</div>
+        <div class="protocol-content">
+          <h3>Structure</h3>
+          <p>Knowledge is decomposed into a 3-tier ontology: <em>Facts</em> (objective), <em>Judgments</em> (reasoned), <em>Intuitions</em> (heuristic).</p>
+        </div>
+        <div class="protocol-metric">3-tier ontology</div>
+      </div>
+
+      <div class="protocol reveal">
+        <div class="protocol-num">III</div>
+        <div class="protocol-content">
+          <h3>Validation</h3>
+          <p>A canonical 20-question battery probes coverage, contradictions, and confidence calibration.</p>
+        </div>
+        <div class="protocol-metric">20 questions</div>
+      </div>
+
+      <div class="protocol reveal">
+        <div class="protocol-num">IV</div>
+        <div class="protocol-content">
+          <h3>Access</h3>
+          <p>Graph-grounded retrieval with Reciprocal Rank Fusion (k = 60) unifies dense and sparse signals.</p>
+        </div>
+        <div class="protocol-metric">RRF · k=60</div>
+      </div>
+
+      <div class="protocol reveal">
+        <div class="protocol-num">V</div>
+        <div class="protocol-content">
+          <h3>Maintenance</h3>
+          <p>A 6-month refresh cycle keeps the knowledge graph aligned with evolving practice and feedback.</p>
+        </div>
+        <div class="protocol-metric">6-month cycle</div>
       </div>
     </div>
   </div>
+</section>
 
-</div>
+<!-- RESULTS -->
+<section id="results">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-eyebrow">03 · Measured Outcomes</div>
+      <h2 class="section-title">Empirical results from the <em>Pompiliu</em> pilot.</h2>
+      <p class="section-lead">
+        First deployment of NUMA on a real expert corpus produced measurable gains in retrieval efficiency,
+        semantic fidelity, and end-to-end latency.
+      </p>
+    </div>
+
+    <div class="results-grid">
+      <div class="result-card reveal">
+        <div class="result-value">64.8%</div>
+        <div class="result-label">Token reduction versus baseline RAG retrieval</div>
+      </div>
+      <div class="result-card reveal">
+        <div class="result-value">1</div>
+        <div class="result-label">Single tool invocation per query (vs. multi-hop chains)</div>
+      </div>
+      <div class="result-card reveal">
+        <div class="result-value">67%</div>
+        <div class="result-label">Keyword overlap with expert-validated answers</div>
+      </div>
+      <div class="result-card reveal">
+        <div class="result-value">233–649<span style="font-size:1.2rem;color:var(--gold-bright);"> ms</span></div>
+        <div class="result-label">End-to-end latency range across query complexity</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ARCHITECTURE -->
+<section id="architecture" class="protocols-section">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-eyebrow">04 · System Architecture</div>
+      <h2 class="section-title">A <em>pipeline</em>, not a product.</h2>
+      <p class="section-lead">
+        Each stage produces verifiable artifacts that feed the next. The maintenance loop closes back to capture,
+        making NUMA a continuous knowledge system rather than a one-shot extraction.
+      </p>
+    </div>
+
+    <div class="architecture reveal">
+      <div class="pipeline">
+        <div class="pipeline-step">
+          <div class="pipeline-icon">I</div>
+          <div class="pipeline-name">Capture</div>
+          <div class="pipeline-desc">LLM<br>INTERVIEW</div>
+        </div>
+        <div class="pipeline-arrow">→</div>
+        <div class="pipeline-step">
+          <div class="pipeline-icon">II</div>
+          <div class="pipeline-name">Structure</div>
+          <div class="pipeline-desc">3-TIER<br>ONTOLOGY</div>
+        </div>
+        <div class="pipeline-arrow">→</div>
+        <div class="pipeline-step">
+          <div class="pipeline-icon">III</div>
+          <div class="pipeline-name">Validation</div>
+          <div class="pipeline-desc">20-QUESTION<br>BATTERY</div>
+        </div>
+        <div class="pipeline-arrow">→</div>
+        <div class="pipeline-step">
+          <div class="pipeline-icon">IV</div>
+          <div class="pipeline-name">Access</div>
+          <div class="pipeline-desc">RRF<br>RETRIEVAL</div>
+        </div>
+        <div class="pipeline-arrow">→</div>
+        <div class="pipeline-step">
+          <div class="pipeline-icon">V</div>
+          <div class="pipeline-name">Maintenance</div>
+          <div class="pipeline-desc">6-MONTH<br>REFRESH</div>
+        </div>
+      </div>
+      <div class="pipeline-legend">↻ Maintenance feedback loops back to Capture · Continuous knowledge evolution</div>
+    </div>
+  </div>
+</section>
+
+<!-- TRY CAPTURE -->
+<section id="try" class="protocols-section">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-eyebrow">06 · Try It</div>
+      <h2 class="section-title">Capture knowledge <em>right now</em>.</h2>
+      <p class="section-lead">
+        NUMA Capture is a self-service web tool that guides an expert through the 4-phase interview.
+        No installation, no setup — just a browser.
+      </p>
+    </div>
+
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:1.5rem; margin:3rem 0;">
+      <div class="stat-card reveal" style="text-align:center;">
+        <div style="font-size:2.5rem; margin-bottom:0.8rem;">🧠</div>
+        <div class="stat-label"><strong>Real LLM Interviewer</strong><br><span style="color:var(--text-dim);font-size:0.85rem;">DeepSeek V4 Flash genera preguntas contextuales basadas en tus respuestas</span></div>
+      </div>
+      <div class="stat-card reveal" style="text-align:center;">
+        <div style="font-size:2.5rem; margin-bottom:0.8rem;">📋</div>
+        <div class="stat-label"><strong>4 Fases · ~3.5h</strong><br><span style="color:var(--text-dim);font-size:0.85rem;">Desde mapeo de rol hasta conocimiento no escrito — progresión automática</span></div>
+      </div>
+      <div class="stat-card reveal" style="text-align:center;">
+        <div style="font-size:2.5rem; margin-bottom:0.8rem;">📤</div>
+        <div class="stat-label"><strong>Auto-index a RAG</strong><br><span style="color:var(--text-dim);font-size:0.85rem;">Al completar, los items de conocimiento se indexan automáticamente en ChromaDB</span></div>
+      </div>
+    </div>
+
+    <div class="reveal" style="text-align:center; margin-top:2rem;">
+      <a href="/capture" style="display:inline-block; background:linear-gradient(135deg, var(--gold), var(--gold-bright)); color:var(--bg); padding:1rem 3rem; border-radius:10px; font-weight:700; font-size:1.2rem; text-decoration:none; letter-spacing:0.05em; transition:all 0.3s ease; box-shadow:0 4px 30px rgba(201,169,78,0.3);" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 40px rgba(201,169,78,0.4)';" onmouseout="this.style.transform='';this.style.boxShadow='0 4px 30px rgba(201,169,78,0.3)';">Start NUMA Capture →</a>
+      <p style="color:var(--text-dim); font-family:var(--mono); font-size:0.75rem; margin-top:1rem; letter-spacing:0.1em;">No requiere registro · Datos guardados localmente</p>
+    </div>
+  </div>
+</section>
+
+<!-- CITATION -->
+<section id="citation">
+  <div class="container" style="max-width: 900px;">
+    <div class="reveal">
+      <div class="section-eyebrow">05 · Citation</div>
+      <h2 class="section-title">Cite this <em>work</em>.</h2>
+      <p class="section-lead">
+        If NUMA contributes to your research or practice, please cite the source paper.
+      </p>
+    </div>
+
+    <div class="citation-block reveal">
+      <div class="citation-header">
+        <span class="citation-label">BibTeX</span>
+        <button class="copy-btn" onclick="copyCitation(this)">COPY</button>
+      </div>
+<pre class="citation-code" id="bibtex"><span class="key">@techreport</span>{<span class="key">boian2026numa</span>,
+  <span class="field">title</span>     = <span class="value">{{NUMA}: Perpetuating Expert Knowledge through
+               {LLM}-Guided Elicitation and Graph-Grounded Retrieval}</span>,
+  <span class="field">author</span>    = <span class="value">{Boian, Cristian}</span>,
+  <span class="field">year</span>      = <span class="value">{2026}</span>,
+  <span class="field">institution</span> = <span class="value">{Independent Research}</span>,
+  <span class="field">note</span>      = <span class="value">{Project Pompiliu · MIT License}</span>,
+  <span class="field">url</span>       = <span class="value">{https://github.com/cristianboian/numa-pompiliu}</span>
+}</pre>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">NUMA</div>
+  <div class="footer-text">Built by <a href="mailto:cristianboian@gmail.com">Cristian Boian</a> · Independent Research · MIT License</div>
+  <div class="footer-text" style="font-style:italic;font-family:var(--serif);">"Numa Pompilius — the lawgiver who codified what came before him."</div>
+  <div class="footer-meta">© 2026 · ALL PROTOCOLS OPEN</div>
+</footer>
 
 <script>
-  // ─── Config ─────────────────────────────────────────────
-  const API = '';  // Same origin, reverse proxy handles it
-  let sessionId = null;
-  let isLoading = false;
+  // Nav scroll effect
+  const nav = document.getElementById('nav');
+  window.addEventListener('scroll', () => {
+    nav.classList.toggle('scrolled', window.scrollY > 50);
+  });
 
-  // ─── Auto-resize textarea ─────────────────────────────
-  function autoResize(el) {
-    el.style.height = 'auto';
-    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
-  }
-
-  function handleKey(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendAnswer();
-    }
-  }
-
-  // ─── Phase colors ─────────────────────────────────────
-  const phaseColors = { A: '#3b82f6', B: '#f59e0b', C: '#22c55e', D: '#a855f7' };
-  const phaseNames = { A: 'Role Mapping', B: 'Incidentes Críticos', C: 'Verificación Inversa', D: 'Lo No Escrito' };
-
-  // ─── Create session ───────────────────────────────────
-  async function startSession() {
-    const name = document.getElementById('input-name').value.trim() || 'Experto';
-    const role = document.getElementById('input-role').value.trim() || 'Senior';
-    const domain = document.getElementById('input-domain').value.trim() || 'General';
-    const org = document.getElementById('input-org').value.trim();
-
-    try {
-      const res = await fetch(`${API}/api/sessions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          expert_name: name,
-          expert_role: role,
-          domain: domain,
-          organization: org,
-        }),
-      });
-      const data = await res.json();
-      sessionId = data.id;
-
-      // Start interview
-      await startInterview();
-    } catch (e) {
-      alert('Error al crear la sesión: ' + e.message);
-    }
-  }
-
-  async function startInterview() {
-    try {
-      const res = await fetch(`${API}/api/sessions/${sessionId}/start`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: '{}',
-      });
-      const data = await res.json();
-      switchScreen('interview');
-      renderMessages(data.messages || []);
-      updatePhaseBar(data.current_phase, data);
-      enableInput(true);
-    } catch (e) {
-      alert('Error al iniciar: ' + e.message);
-    }
-  }
-
-  // ─── Send answer ──────────────────────────────────────
-  async function sendAnswer() {
-    const input = document.getElementById('chat-input');
-    const text = input.value.trim();
-    if (!text || isLoading) return;
-
-    // Show user message immediately
-    addMessage({ role: 'user', content: text, phase: '' });
-    input.value = '';
-    input.style.height = 'auto';
-    enableInput(false);
-    showTyping();
-
-    try {
-      const res = await fetch(`${API}/api/sessions/${sessionId}/answer`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ answer: text }),
-      });
-      const data = await res.json();
-      removeTyping();
-
-      if (data.status === 'completed') {
-        showCompletion(data);
-        return;
-      }
-
-      // Show assistant response (last message)
-      const msgs = data.messages || [];
-      const lastMsg = msgs[msgs.length - 1];
-      if (lastMsg && lastMsg.role === 'assistant') {
-        addMessage(lastMsg);
-      }
-
-      // Check for phase transition
-      updatePhaseBar(data.current_phase, data);
-      enableInput(true);
-    } catch (e) {
-      removeTyping();
-      addMessage({ role: 'assistant', content: '⚠️ Error de conexión. Intenta de nuevo.', phase: '' });
-      enableInput(true);
-    }
-  }
-
-  // ─── Render messages ──────────────────────────────────
-  function renderMessages(messages) {
-    const container = document.getElementById('chat-messages');
-    container.innerHTML = '';
-    messages.forEach(m => {
-      if (m.role === 'assistant') container.appendChild(createMessageEl(m));
-    });
-    scrollToBottom();
-  }
-
-  function addMessage(msg) {
-    const container = document.getElementById('chat-messages');
-    container.appendChild(createMessageEl(msg));
-    scrollToBottom();
-  }
-
-  function createMessageEl(msg) {
-    const el = document.createElement('div');
-    el.className = `message ${msg.role}`;
-
-    let html = '';
-    if (msg.phase) {
-      const color = phaseColors[msg.phase] || '#7c3aed';
-      html += `<div class="msg-phase" style="color:${color}">Fase ${msg.phase} · ${phaseNames[msg.phase] || ''}</div>`;
-    }
-    // Render markdown-like content
-    html += `<div class="msg-content">${renderContent(msg.content)}</div>`;
-    el.innerHTML = html;
-    return el;
-  }
-
-  function renderContent(text) {
-    if (!text) return '';
-    // Escape HTML first
-    let s = text
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      // Bold
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      // Italic
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      // Code blocks
-      .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
-      // Inline code
-      .replace(/`([^`]+)`/g, '<code>$1</code>')
-      // New lines
-      .replace(/\n/g, '<br>');
-    return s;
-  }
-
-  function showTyping() {
-    const container = document.getElementById('chat-messages');
-    const el = document.createElement('div');
-    el.className = 'message assistant';
-    el.id = 'typing-indicator';
-    el.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
-    container.appendChild(el);
-    scrollToBottom();
-  }
-
-  function removeTyping() {
-    const el = document.getElementById('typing-indicator');
-    if (el) el.remove();
-  }
-
-  function scrollToBottom() {
-    const container = document.getElementById('chat-messages');
-    container.scrollTop = container.scrollHeight;
-  }
-
-  // ─── Phase progress ───────────────────────────────────
-  function updatePhaseBar(currentPhase, data) {
-    document.querySelectorAll('.phase-step').forEach(el => {
-      const phase = el.dataset.phase;
-      el.classList.remove('active', 'done');
-
-      const phaseOrder = ['A', 'B', 'C', 'D'];
-      const currentIdx = phaseOrder.indexOf(currentPhase);
-      const thisIdx = phaseOrder.indexOf(phase);
-
-      if (thisIdx < currentIdx) {
-        el.classList.add('done');
-      } else if (phase === currentPhase && data.status !== 'completed') {
-        el.classList.add('active');
+  // Reveal on scroll
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        observer.unobserve(entry.target);
       }
     });
-  }
+  }, { threshold: 0.12, rootMargin: '0px 0px -50px 0px' });
 
-  // ─── Switch screens ───────────────────────────────────
-  function switchScreen(name) {
-    document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
-    document.getElementById(`screen-${name}`).classList.add('active');
-  }
+  document.querySelectorAll('.reveal').forEach((el) => observer.observe(el));
 
-  function enableInput(enabled) {
-    isLoading = !enabled;
-    document.getElementById('chat-input').disabled = !enabled;
-    document.getElementById('chat-send').disabled = !enabled;
-    if (enabled) document.getElementById('chat-input').focus();
-  }
-
-  // ─── Completion ────────────────────────────────────────
-  async function showCompletion(data) {
-    switchScreen('completion');
-    document.getElementById('stat-items').textContent = (data.knowledge_items || []).length;
-
-    // Fetch export for stats
-    try {
-      const res = await fetch(`${API}/api/sessions/${sessionId}/export`);
-      const exportData = await res.json();
-      document.getElementById('stat-items').textContent = (exportData.knowledge_items || []).length;
-    } catch (e) {}
-  }
-
-  async function exportSession() {
-    try {
-      const res = await fetch(`${API}/api/sessions/${sessionId}/export`);
-      const data = await res.json();
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `numa-capture-${sessionId.slice(0, 8)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      alert('Error al exportar: ' + e.message);
-    }
-  }
-
-  function resetSession() {
-    sessionId = null;
-    document.getElementById('chat-messages').innerHTML = '';
-    switchScreen('setup');
-    document.getElementById('input-name').value = '';
-    document.getElementById('input-role').value = '';
-    document.getElementById('input-domain').value = '';
-    document.getElementById('input-org').value = '';
+  // Copy BibTeX
+  function copyCitation(btn) {
+    const text = document.getElementById('bibtex').innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      const original = btn.textContent;
+      btn.textContent = '✓ COPIED';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = original;
+        btn.classList.remove('copied');
+      }, 2000);
+    });
   }
 </script>
 

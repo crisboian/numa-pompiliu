@@ -417,26 +417,32 @@ async def get_progress(session_id: str, db: DBSession = Depends(get_db)):
 # ─── Serve frontend (catch-all after API routes) ──────────
 
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend")
-INDEX_HTML = os.path.join(FRONTEND_DIR, "index.html")
 
 
 @app.get("/")
-async def serve_index():
-    """Serve the frontend app."""
-    return HTMLResponse(content=open(INDEX_HTML).read())
+async def serve_landing():
+    """Serve the NUMA landing page."""
+    path = os.path.join(FRONTEND_DIR, "index.html")
+    return HTMLResponse(content=open(path).read())
+
+
+@app.get("/capture")
+@app.get("/capture.html")
+async def serve_capture():
+    """Serve the NUMA Capture interview tool."""
+    path = os.path.join(FRONTEND_DIR, "capture.html")
+    return HTMLResponse(content=open(path).read())
 
 
 @app.get("/{full_path:path}")
 async def serve_frontend(full_path: str):
     """Serve frontend static files or fallback to index.html."""
-    # Prevent directory traversal
     if ".." in full_path or full_path.startswith("/"):
-        return HTMLResponse(content=open(INDEX_HTML).read())
-
+        return HTMLResponse(content=open(os.path.join(FRONTEND_DIR, "index.html")).read())
     file_path = os.path.join(FRONTEND_DIR, full_path)
     if os.path.isfile(file_path) and os.path.realpath(file_path).startswith(os.path.realpath(FRONTEND_DIR)):
         return HTMLResponse(content=open(file_path).read())
-    return HTMLResponse(content=open(INDEX_HTML).read())
+    return HTMLResponse(content=open(os.path.join(FRONTEND_DIR, "index.html")).read())
 
 
 def serve():
