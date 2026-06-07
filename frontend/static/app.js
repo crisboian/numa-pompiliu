@@ -224,7 +224,6 @@ async function renderForceGraph() {
   const legendEl = document.getElementById('graph-legend');
   const tooltipEl = document.getElementById('graph-tooltip');
 
-  // Show spinner, hide empty state
   if (emptyEl) emptyEl.style.display = 'none';
   svgEl.style.display = 'block';
   container.innerHTML = '<div class="spinner"><div class="sp-dot"></div><div class="sp-dot"></div><div class="sp-dot"></div><span class="spinner-text">Generating graph...</span></div>';
@@ -240,18 +239,19 @@ async function renderForceGraph() {
       return;
     }
 
-    // Entity type colors (gold-inspired palette)
-    const typeColors = {
-      machine: '#3b82f6', procedure: '#22c55e', incident: '#ef4444',
-      safety_rule: '#f59e0b', regulation: '#a855f7', role: '#ec4899',
-      material: '#14b8a6', tool: '#f97316', alarm: '#eab308',
-      area: '#06b6d4', risk: '#8b5cf6'
-    };
-    const typeLabels = {
-      machine: 'Machine', procedure: 'Procedure', incident: 'Incident',
-      safety_rule: 'Safety', regulation: 'Regulation', role: 'Role',
-      material: 'Material', tool: 'Tool', alarm: 'Alarm',
-      area: 'Area', risk: 'Risk'
+    // Palette — premium industrial
+    const palette = {
+      machine:      { fill: '#3b82f6', label: 'Machine' },
+      procedure:    { fill: '#22c55e', label: 'Procedure' },
+      incident:     { fill: '#ef4444', label: 'Incident' },
+      safety_rule:  { fill: '#f59e0b', label: 'Safety' },
+      regulation:   { fill: '#a855f7', label: 'Regulation' },
+      role:         { fill: '#ec4899', label: 'Role' },
+      material:     { fill: '#14b8a6', label: 'Material' },
+      tool:         { fill: '#f97316', label: 'Tool' },
+      alarm:        { fill: '#eab308', label: 'Alarm' },
+      area:         { fill: '#06b6d4', label: 'Area' },
+      risk:         { fill: '#8b5cf6', label: 'Risk' },
     };
 
     const nodes = d.entities.map(e => ({
@@ -266,24 +266,25 @@ async function renderForceGraph() {
       notes: r.notes
     }));
 
-    // Compute degree
-    const degree = {};
-    nodes.forEach(n => degree[n.id] = 0);
+    // Degree & type groups
+    const deg = {};
+    nodes.forEach(n => deg[n.id] = 0);
     links.forEach(l => {
-      if (degree[l.source] !== undefined) degree[l.source]++;
-      if (degree[l.target] !== undefined) degree[l.target]++;
+      if (deg[l.source] !== undefined) deg[l.source]++;
+      if (deg[l.target] !== undefined) deg[l.target]++;
     });
-    const maxDeg = Math.max(...Object.values(degree), 1);
+    const maxDeg = Math.max(...Object.values(deg), 1);
+    const types = [...new Set(nodes.map(n => n.type))];
 
     const width = container.clientWidth || 800;
-    const height = 500;
+    const height = 520;
 
-    // Rebuild container with SVG
-    container.innerHTML = `
-      <svg id="graph-svg" width="100%" height="${height}" style="display:block;background:var(--bg);border-radius:8px"></svg>
-      <div id="graph-tooltip" style="display:none;position:absolute;pointer-events:none;background:rgba(15,21,37,0.95);color:var(--text);padding:10px 14px;border-radius:8px;border:1px solid var(--border-strong);font-size:13px;box-shadow:0 8px 32px rgba(0,0,0,0.5);z-index:100;max-width:280px;backdrop-filter:blur(12px)"></div>
-      <div id="graph-legend" style="position:absolute;top:12px;right:12px;background:rgba(10,14,26,0.85);padding:10px 14px;border-radius:8px;border:1px solid var(--border);font-size:11px;font-family:var(--mono);color:var(--text-muted);line-height:1.8;backdrop-filter:blur(8px);letter-spacing:0.03em"></div>
-    `;
+    // Build SVG
+    container.innerHTML = [
+      '<svg id="graph-svg" width="100%" height="'+height+'" style="display:block;background:var(--bg);border-radius:8px;overflow:hidden"></svg>',
+      '<div id="graph-tooltip" style="display:none;position:absolute;pointer-events:none;background:rgba(10,14,26,0.96);color:var(--text);padding:12px 16px;border-radius:10px;border:1px solid var(--border-strong);font-size:13px;box-shadow:0 12px 40px rgba(0,0,0,0.6);z-index:100;max-width:300px;backdrop-filter:blur(16px);line-height:1.5"></div>',
+      '<div id="graph-legend" style="position:absolute;top:12px;right:12px;background:rgba(10,14,26,0.88);padding:10px 14px;border-radius:8px;border:1px solid var(--border);font-size:11px;font-family:var(--mono);color:var(--text-muted);line-height:2;backdrop-filter:blur(8px);letter-spacing:0.03em"></div>'
+    ].join('');
 
     const svg = d3.select('#graph-svg');
     const tooltip = d3.select('#graph-tooltip');
@@ -291,189 +292,295 @@ async function renderForceGraph() {
 
     svg.attr('viewBox', [0, 0, width, height]);
 
-    // --- Defs: gradients, filters, markers ---
+    // ── Defs ──
     const defs = svg.append('defs');
 
     // Glow filter
-    const filter = defs.append('filter').attr('id', 'glow');
-    filter.append('feGaussianBlur').attr('stdDeviation', '3').attr('result', 'blur');
-    const merge = filter.append('feMerge');
-    merge.append('feMergeNode').attr('in', 'blur');
-    merge.append('feMergeNode').attr('in', 'SourceGraphic');
+    const glowFilter = defs.append('filter').attr('id', 'gGlow');
+    glowFilter.append('feGaussianBlur').attr('stdDeviation', '4').attr('result', 'b');
+    const gm = glowFilter.append('feMerge');
+    gm.append('feMergeNode').attr('in', 'b');
+    gm.append('feMergeNode').attr('in', 'SourceGraphic');
 
-    // Arrow marker
+    // Soft glow (for cluster groups)
+    const softGlow = defs.append('filter').attr('id', 'gSoft');
+    softGlow.append('feGaussianBlur').attr('stdDeviation', '18').attr('result', 'b');
+    const sm = softGlow.append('feMerge');
+    sm.append('feMergeNode').attr('in', 'b');
+    sm.append('feMergeNode').attr('in', 'SourceGraphic');
+
+    // Arrows
     defs.append('marker')
-      .attr('id', 'arrow')
-      .attr('viewBox', '0 -5 10 10')
-      .attr('refX', 28)
-      .attr('refY', 0)
-      .attr('markerWidth', 6)
-      .attr('markerHeight', 6)
-      .attr('orient', 'auto')
-      .append('path')
-      .attr('d', 'M0,-4L8,0L0,4')
-      .attr('fill', 'none')
-      .attr('stroke', 'var(--text-dim)')
-      .attr('stroke-width', '1.2');
+      .attr('id', 'gArr')
+      .attr('viewBox', '0 -5 10 10').attr('refX', 26).attr('refY', 0)
+      .attr('markerWidth', 5).attr('markerHeight', 5).attr('orient', 'auto')
+      .append('path').attr('d', 'M0,-4L8,0L0,4').attr('fill', 'none')
+      .attr('stroke', 'rgba(201,169,78,0.25)').attr('stroke-width', '1');
 
     // Radial gradients per type
-    Object.entries(typeColors).forEach(([t, c]) => {
-      const grad = defs.append('radialGradient').attr('id', 'grad-' + t);
-      grad.append('stop').attr('offset', '0%').attr('stop-color', c).attr('stop-opacity', 1);
-      grad.append('stop').attr('offset', '70%').attr('stop-color', c).attr('stop-opacity', 0.85);
-      grad.append('stop').attr('offset', '100%').attr('stop-color', c).attr('stop-opacity', 0.6);
+    Object.entries(palette).forEach(([t, p]) => {
+      const g = defs.append('radialGradient').attr('id', 'gGrad_' + t);
+      g.append('stop').attr('offset', '0%').attr('stop-color', p.fill).attr('stop-opacity', 1);
+      g.append('stop').attr('offset', '60%').attr('stop-color', p.fill).attr('stop-opacity', 0.85);
+      g.append('stop').attr('offset', '100%').attr('stop-color', p.fill).attr('stop-opacity', 0.5);
     });
 
-    // --- Zoom ---
+    // ── Zoom ──
     const g = svg.append('g');
     const zoom = d3.zoom()
-      .scaleExtent([0.15, 5])
-      .on('zoom', (event) => { g.attr('transform', event.transform); });
+      .scaleExtent([0.15, 6])
+      .on('zoom', (ev) => { g.attr('transform', ev.transform); });
     svg.call(zoom);
 
-    // --- Force simulation ---
-    const simulation = d3.forceSimulation(nodes)
-      .force('link', d3.forceLink(links).id(d => d.id).distance(150))
-      .force('charge', d3.forceManyBody().strength(-400))
-      .force('center', d3.forceCenter(width / 2, height / 2))
-      .force('collision', d3.forceCollide().radius(d => 12 + (degree[d.id] / maxDeg) * 18));
+    // ── Cluster positions (use forceX/Y to group by type) ──
+    const typeIdx = {};
+    types.forEach((t, i) => { typeIdx[t] = i; });
+    const cols = Math.min(types.length, 4);
+    const xSpan = width / (cols + 1);
+    const ySpan = height / (Math.ceil(types.length / cols) + 1);
 
-    // --- Links (curved paths) ---
+    // ── Background cluster blobs ──
+    const clusterCenters = {};
+    types.forEach((t, i) => {
+      const cx = xSpan * ((i % cols) + 1);
+      const cy = ySpan * (Math.floor(i / cols) + 1);
+      clusterCenters[t] = { x: cx, y: cy };
+    });
+
+    const blobGroup = g.append('g').attr('class', 'blobs');
+    const clusterBlobs = {};
+    types.forEach(t => {
+      const p = palette[t] || { fill: '#666' };
+      clusterBlobs[t] = blobGroup.append('circle')
+        .attr('r', 0)
+        .attr('fill', p.fill)
+        .attr('opacity', 0.04)
+        .attr('filter', 'url(#gSoft)')
+        .attr('cx', clusterCenters[t].x)
+        .attr('cy', clusterCenters[t].y);
+    });
+
+    // ── Force simulation ──
+    const simulation = d3.forceSimulation(nodes)
+      .force('link', d3.forceLink(links).id(d => d.id).distance(d => 80 + (1 / (d.weight || 1)) * 60))
+      .force('charge', d3.forceManyBody().strength(-250))
+      .force('x', d3.forceX(d => clusterCenters[d.type].x).strength(0.12))
+      .force('y', d3.forceY(d => clusterCenters[d.type].y + 30).strength(0.12))
+      .force('collision', d3.forceCollide().radius(d => 18 + (deg[d.id] / maxDeg) * 22));
+
+    // ── Links (curved bezier) ──
     const link = g.append('g').selectAll('path')
       .data(links).join('path')
       .attr('fill', 'none')
-      .attr('stroke', 'var(--text-dim)')
-      .attr('stroke-opacity', 0.25)
-      .attr('stroke-width', d => Math.max(0.8, Math.min(2.5, (d.weight || 1) * 1.2)))
-      .attr('marker-end', 'url(#arrow)');
+      .attr('stroke', 'rgba(201,169,78,0.15)')
+      .attr('stroke-width', d => Math.max(0.6, Math.min(2.2, (d.weight || 1) * 1.2)))
+      .attr('stroke-dasharray', d => d.weight < 0.5 ? '4,3' : 'none')
+      .attr('marker-end', 'url(#gArr)');
 
     // Relation labels
     const linkLabel = g.append('g').selectAll('text')
       .data(links).join('text')
       .text(d => d.type.replace(/_/g, ' '))
-      .attr('font-size', '8px')
-      .attr('font-family', 'var(--mono)')
-      .attr('fill', 'var(--text-dim)')
-      .attr('text-anchor', 'middle')
-      .attr('dy', -4)
-      .style('pointer-events', 'none')
-      .style('opacity', 0);
+      .attr('font-size', '7px').attr('font-family', 'var(--mono)')
+      .attr('fill', 'rgba(201,169,78,0.35)').attr('text-anchor', 'middle')
+      .attr('dy', -6).style('pointer-events', 'none').style('opacity', 0);
 
-    // --- Nodes ---
+    // ── Nodes ──
     const node = g.append('g').selectAll('g')
-      .data(nodes).join('g')
-      .style('cursor', 'pointer');
+      .data(nodes).join('g').style('cursor', 'pointer');
 
-    // Outer glow ring
+    // Outer glow
     node.append('circle')
-      .attr('r', d => 10 + (degree[d.id] / maxDeg) * 18)
-      .attr('fill', d => 'url(#grad-' + d.type + ')')
-      .attr('filter', 'url(#glow)')
-      .attr('opacity', 0.6);
+      .attr('class', 'nGlow')
+      .attr('r', d => 14 + (deg[d.id] / maxDeg) * 22)
+      .attr('fill', d => 'url(#gGrad_' + d.type + ')')
+      .attr('filter', 'url(#gGlow)')
+      .attr('opacity', 0.5);
 
-    // Inner solid circle
+    // Inner disc
+    const disc = node.append('circle')
+      .attr('class', 'nDisc')
+      .attr('r', d => 10 + (deg[d.id] / maxDeg) * 18)
+      .attr('fill', d => palette[d.type]?.fill || '#666')
+      .attr('stroke', d => palette[d.type]?.fill || '#666')
+      .attr('stroke-width', 2)
+      .style('transition', 'stroke 0.15s, stroke-width 0.15s');
+
+    // Inner highlight (3D effect)
     node.append('circle')
-      .attr('r', d => 7 + (degree[d.id] / maxDeg) * 14)
-      .attr('fill', d => typeColors[d.type] || '#666')
-      .attr('stroke', 'rgba(201,169,78,0.3)')
-      .attr('stroke-width', 1.5)
-      .style('transition', 'stroke 0.2s, stroke-width 0.2s');
+      .attr('class', 'nHighlight')
+      .attr('r', d => (10 + (deg[d.id] / maxDeg) * 18) * 0.35)
+      .attr('cx', d => -(10 + (deg[d.id] / maxDeg) * 18) * 0.25)
+      .attr('cy', d => -(10 + (deg[d.id] / maxDeg) * 18) * 0.25)
+      .attr('fill', 'rgba(255,255,255,0.15)')
+      .style('pointer-events', 'none');
 
-    // Node label
+    // Small type indicator inside node
     node.append('text')
-      .text(d => d.name.length > 18 ? d.name.substring(0, 17) + '...' : d.name)
-      .attr('dx', d => 12 + (degree[d.id] / maxDeg) * 16)
+      .attr('class', 'nTypeIcon')
+      .text(d => (palette[d.type]?.label || d.type).charAt(0))
+      .attr('font-size', d => Math.max(7, Math.min(13, 8 + (deg[d.id] / maxDeg) * 6)))
+      .attr('font-family', 'var(--serif)')
+      .attr('font-weight', '700')
+      .attr('fill', 'rgba(255,255,255,0.85)')
+      .attr('text-anchor', 'middle')
+      .attr('dy', '0.35em')
+      .style('pointer-events', 'none');
+
+    // Name label (only for nodes with degree > 0 or hover)
+    node.append('text')
+      .attr('class', 'nLabel')
+      .text(d => d.name.length > 20 ? d.name.substring(0, 19) + '...' : d.name)
+      .attr('dx', d => 16 + (deg[d.id] / maxDeg) * 20)
       .attr('dy', 4)
-      .attr('font-size', '10px')
-      .attr('font-family', 'var(--sans)')
+      .attr('font-size', '10px').attr('font-family', 'var(--sans)')
       .attr('fill', 'var(--text-muted)')
       .style('pointer-events', 'none')
-      .style('text-shadow', '0 1px 3px rgba(0,0,0,0.8)')
-      .style('opacity', 0.85);
+      .style('text-shadow', '0 1px 4px rgba(0,0,0,0.9)')
+      .style('opacity', d => deg[d.id] > 0 ? 0.85 : 0);
 
-    // Hover/click on node groups
-    node.on('mouseover', function(event, d) {
-      d3.select(this).selectAll('circle').attr('stroke', 'var(--gold)').attr('stroke-width', 2.5);
+    // ── Hover highlight ──
+    node.on('mouseenter', function(ev, d) {
+      // Highlight this node
+      d3.select(this).selectAll('.nDisc')
+        .attr('stroke', 'var(--gold-bright)').attr('stroke-width', 3);
+      d3.select(this).select('.nGlow').attr('opacity', 0.8);
+
+      // Build set of connected node IDs
+      const connected = new Set();
+      links.forEach(l => {
+        const src = typeof l.source === 'object' ? l.source.id : l.source;
+        const tgt = typeof l.target === 'object' ? l.target.id : l.target;
+        if (src === d.id) connected.add(tgt);
+        if (tgt === d.id) connected.add(src);
+      });
+
+      // Dim everything else, brighten connected
+      node.each(function(n) {
+        const el = d3.select(this);
+        if (n.id === d.id) return;
+        const isConn = connected.has(n.id);
+        el.select('.nDisc').attr('opacity', isConn ? 1 : 0.2);
+        el.select('.nGlow').attr('opacity', isConn ? 0.6 : 0.05);
+        el.select('.nLabel').attr('opacity', isConn ? 0.85 : 0.05);
+        el.select('.nHighlight').attr('opacity', isConn ? 1 : 0);
+        el.select('.nTypeIcon').attr('opacity', isConn ? 1 : 0.15);
+      });
+      link.each(function(l) {
+        const src = typeof l.source === 'object' ? l.source.id : l.source;
+        const tgt = typeof l.target === 'object' ? l.target.id : l.target;
+        d3.select(this).attr('opacity', (src === d.id || tgt === d.id) ? 1 : 0.08);
+      });
+      linkLabel.each(function(l) {
+        const src = typeof l.source === 'object' ? l.source.id : l.source;
+        const tgt = typeof l.target === 'object' ? l.target.id : l.target;
+        d3.select(this).attr('opacity', (src === d.id || tgt === d.id) ? 0.7 : 0);
+      });
+
+      // Tooltip
       const rect = container.getBoundingClientRect();
+      const p = palette[d.type] || { label: d.type, fill: '#666' };
+      let html = '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
+        '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:'+p.fill+';box-shadow:0 0 8px '+p.fill+'"></span>' +
+        '<strong style="color:var(--gold-bright);font-family:var(--serif);font-size:15px">'+d.name+'</strong>' +
+        '</div>' +
+        '<span style="color:var(--text-muted);font-size:11px">'+p.label+'</span>';
+      if (d.description) {
+        html += '<br><span style="color:var(--text-dim);font-size:10px;line-height:1.5;display:inline-block;margin-top:4px">'+d.description.substring(0, 160)+'</span>';
+      }
+      html += '<br><span style="color:var(--gold);font-size:9px;font-family:var(--mono);display:inline-block;margin-top:6px">'+deg[d.id]+' connections</span>';
       tooltip.style('display', 'block')
-        .style('left', (event.clientX - rect.left + 14) + 'px')
-        .style('top', (event.clientY - rect.top - 12) + 'px')
-        .html('<strong style="color:var(--gold);font-family:var(--serif);font-size:14px">' + d.name + '</strong><br>' +
-          '<span style="color:var(--text-muted);font-size:11px">' + (typeLabels[d.type] || d.type.replace(/_/g, ' ')) + '</span>' +
-          (d.description ? '<br><span style="color:var(--text-dim);font-size:10px;line-height:1.4">' + d.description.substring(0, 120) + '</span>' : '') +
-          '<br><span style="color:var(--gold);font-size:9px;font-family:var(--mono)">' + degree[d.id] + ' connections</span>');
+        .style('left', (ev.clientX - rect.left + 16) + 'px')
+        .style('top', (ev.clientY - rect.top - 10) + 'px')
+        .html(html);
     })
-    .on('mousemove', function(event) {
+    .on('mousemove', function(ev) {
       const rect = container.getBoundingClientRect();
-      tooltip.style('left', (event.clientX - rect.left + 14) + 'px')
-        .style('top', (event.clientY - rect.top - 12) + 'px');
+      tooltip.style('left', (ev.clientX - rect.left + 16) + 'px')
+        .style('top', (ev.clientY - rect.top - 10) + 'px');
     })
-    .on('mouseout', function() {
-      d3.select(this).selectAll('circle').attr('stroke', 'rgba(201,169,78,0.3)').attr('stroke-width', 1.5);
+    .on('mouseleave', function() {
+      // Restore all
+      node.each(function() {
+        const el = d3.select(this);
+        el.select('.nDisc').attr('opacity', 1).attr('stroke', d => palette[d.type]?.fill || '#666').attr('stroke-width', 2);
+        el.select('.nGlow').attr('opacity', 0.5);
+        el.select('.nLabel').attr('opacity', d => deg[d.id] > 0 ? 0.85 : 0);
+        el.select('.nHighlight').attr('opacity', 1);
+        el.select('.nTypeIcon').attr('opacity', 1);
+      });
+      link.attr('opacity', 1);
+      linkLabel.attr('opacity', 0);
       tooltip.style('display', 'none');
     })
-    .on('click', function(event, d) {
-      event.stopPropagation();
+    .on('click', function(ev, d) {
+      ev.stopPropagation();
       showEntityDetail(d);
     })
     .call(d3.drag()
-      .on('start', dragstarted)
-      .on('drag', dragged)
-      .on('end', dragended));
+      .on('start', function(ev, d) {
+        if (!ev.active) simulation.alphaTarget(0.3).restart();
+        d.fx = d.x; d.fy = d.y;
+      })
+      .on('drag', function(ev, d) { d.fx = ev.x; d.fy = ev.y; })
+      .on('end', function(ev, d) {
+        if (!ev.active) simulation.alphaTarget(0);
+        d.fx = null; d.fy = null;
+      })
+    );
 
-    // --- Tick ---
+    // ── Tick ──
     simulation.on('tick', () => {
-      // Curved links: compute midpoint offset for bezier
-      link.attr('d', d => {
-        const dx = d.target.x - d.source.x;
-        const dy = d.target.y - d.source.y;
-        const dr = Math.sqrt(dx * dx + dy * dy) * 1.2;
-        return 'M' + d.source.x + ',' + d.source.y +
-          'A' + dr + ',' + dr + ' 0 0,1 ' + d.target.x + ',' + d.target.y;
+      // Blob size follows cluster spread
+      const blobRads = {};
+      types.forEach(t => { blobRads[t] = 0; });
+      nodes.forEach(n => {
+        const dx = n.x - clusterCenters[n.type].x;
+        const dy = n.y - clusterCenters[n.type].y;
+        const dist = Math.sqrt(dx * dx + dy * dy) + 60;
+        if (dist > blobRads[n.type]) blobRads[n.type] = dist;
+      });
+      Object.entries(clusterBlobs).forEach(([t, c]) => {
+        c.attr('r', blobRads[t] || 80)
+         .attr('cx', clusterCenters[t].x)
+         .attr('cy', clusterCenters[t].y);
       });
 
-      // Relation labels at midpoint
-      linkLabel.attr('x', d => (d.source.x + d.target.x) / 2)
-        .attr('y', d => (d.source.y + d.target.y) / 2)
-        .style('opacity', 0.6);
+      // Links
+      link.attr('d', l => {
+        const dx = l.target.x - l.source.x;
+        const dy = l.target.y - l.source.y;
+        const dr = Math.sqrt(dx * dx + dy * dy) * 1.2;
+        return 'M' + l.source.x + ',' + l.source.y +
+          'A' + dr + ',' + dr + ' 0 0,1 ' + l.target.x + ',' + l.target.y;
+      });
+      linkLabel.attr('x', l => (l.source.x + l.target.x) / 2)
+        .attr('y', l => (l.source.y + l.target.y) / 2);
 
-      // Nodes
       node.attr('transform', d => 'translate(' + d.x + ',' + d.y + ')');
     });
 
-    // --- Drag ---
-    function dragstarted(event, d) {
-      if (!event.active) simulation.alphaTarget(0.3).restart();
-      d.fx = d.x;
-      d.fy = d.y;
-    }
-    function dragged(event, d) {
-      d.fx = event.x;
-      d.fy = event.y;
-    }
-    function dragended(event, d) {
-      if (!event.active) simulation.alphaTarget(0);
-      d.fx = null;
-      d.fy = null;
-    }
+    // ── Legend ──
+    legend.html(types.map(t => {
+      const p = palette[t] || { fill: '#666', label: t };
+      return '<div style="display:flex;align-items:center;gap:6px;padding:2px 0">' +
+        '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:'+p.fill+';box-shadow:0 0 6px '+p.fill+'"></span>' +
+        '<span>'+p.label+'</span></div>';
+    }).join(''));
 
-    // --- Legend ---
-    const types = [...new Set(nodes.map(n => n.type))];
-    legend.html(types.map(t =>
-      '<div style="display:flex;align-items:center;gap:6px;padding:1px 0">' +
-        '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + (typeColors[t] || '#666') + ';box-shadow:0 0 6px ' + (typeColors[t] || '#666') + '"></span>' +
-        '<span>' + (typeLabels[t] || t.replace(/_/g, ' ')) + '</span>' +
-      '</div>'
-    ).join(''));
-
-    // Click background to reset zoom
+    // ── Click bg to reset zoom ──
     svg.on('click', function() {
       svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity);
     });
 
-    // Fade in animation
-    node.attr('opacity', 0).transition().duration(600).attr('opacity', 1);
-    link.attr('opacity', 0).transition().duration(800).attr('opacity', 1);
+    // ── Fade in ──
+    node.attr('opacity', 0).transition().duration(500).attr('opacity', 1);
+    link.attr('opacity', 0).transition().duration(700).attr('opacity', 1);
+
+    // ── Auto-center after settle ──
+    setTimeout(() => {
+      simulation.alpha(0.05).restart();
+    }, 100);
 
   } catch (e) {
     console.warn('Force graph error:', e);
