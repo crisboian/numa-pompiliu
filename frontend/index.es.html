@@ -694,6 +694,7 @@
 </style>
 </head>
 <body>
+<canvas id="particles-canvas" style="position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:0"></canvas>
 
 <nav id="nav">
   <div class="nav-logo">NUMA</div>
@@ -711,9 +712,7 @@
 </nav>
 
 <!-- HERO -->
-<header class="hero" id="hero">
-  <canvas id="particles-canvas" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1"></canvas>
-  <div style="position:relative;z-index:2">
+<header class="hero">
   <div class="hero-eyebrow">Un Protocolo de Investigación</div>
   <h1 class="hero-logo">NUMA</h1>
   <p class="hero-subtitle">
@@ -732,7 +731,6 @@
     <span><span class="dot"></span>Código Abierto · MIT</span>
   </div>
   <div class="scroll-hint">SCROLL ↓</div>
-  </div>
 </header>
 
 <!-- PROBLEM -->
@@ -1253,101 +1251,102 @@ document.addEventListener('click', function(e) {
     } else {
       location.href = '/auth/google/login';
     }
-    });
+  }
+});
 
-    checkAuth();
-    </script>
+checkAuth();
+</script>
 
-    <script>
-    // ── Knowledge particles (golden sparkles) ──
-    (function(){
-    var canvas = document.getElementById('particles-canvas');
-    if (!canvas) return;
-    var ctx = canvas.getContext('2d');
-    var particles = [];
-    var MAX = 140;
-    var W, H;
+<script>
+// ── Knowledge particles (golden sparkles) full page ──
+(function(){
+  var canvas = document.getElementById('particles-canvas');
+  if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+  var particles = [];
+  var MAX = 50;
+  var W, H;
 
-    function resize(){
-      W = canvas.width = window.innerWidth;
-      H = canvas.height = document.getElementById('hero').offsetHeight || window.innerHeight;
-    }
-    window.addEventListener('resize', resize);
-    resize();
+  function resize(){
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
 
-    function Particle(){
+  function Particle(){
+    this.reset();
+  }
+  Particle.prototype.reset = function(){
+    this.x = Math.random() * W;
+    this.y = H + 20 + Math.random() * 60;
+    this.size = 1.2 + Math.random() * 2.8;
+    this.speedY = 0.15 + Math.random() * 0.45;
+    this.speedX = (Math.random() - 0.5) * 0.25;
+    this.opacity = 0;
+    this.life = 0;
+    this.maxLife = 600 + Math.random() * 800;
+    this.drift = Math.random() * 0.02 - 0.01;
+  };
+  Particle.prototype.update = function(){
+    this.life++;
+    if(this.life > this.maxLife || this.y < -20){
       this.reset();
+      this.y = H + 20 + Math.random() * 40;
+      return;
     }
-    Particle.prototype.reset = function(){
-      this.x = Math.random() * W;
-      this.y = H + 20 + Math.random() * 60;
-      this.size = 1.2 + Math.random() * 2.8;
-      this.speedY = 0.15 + Math.random() * 0.45;
-      this.speedX = (Math.random() - 0.5) * 0.25;
-      this.opacity = 0;
-      this.life = 0;
-      this.maxLife = 600 + Math.random() * 800;
-      this.drift = Math.random() * 0.02 - 0.01;
-    };
-    Particle.prototype.update = function(){
-      this.life++;
-      if(this.life > this.maxLife || this.y < -20){
-        this.reset();
-        this.y = H + 20 + Math.random() * 40;
-        return;
-      }
-      var fadeIn = 120, fadeOut = 200;
-      if(this.life < fadeIn) this.opacity = (this.life / fadeIn) * 0.7;
-      else if(this.life > this.maxLife - fadeOut) this.opacity = ((this.maxLife - this.life) / fadeOut) * 0.7;
-      else this.opacity = 0.5 + Math.random() * 0.2;
-      this.y -= this.speedY;
-      this.x += this.speedX + Math.sin(this.life * this.drift) * 0.08;
-      this.drift += (Math.random() - 0.5) * 0.002;
-    };
-    Particle.prototype.draw = function(){
-      ctx.save();
-      var rad = this.size;
-      var grad = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, rad * 4);
-      grad.addColorStop(0, 'rgba(201, 169, 78, ' + (this.opacity * 0.4) + ')');
-      grad.addColorStop(1, 'rgba(201, 169, 78, 0)');
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.arc(this.x, this.y, rad * 4, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.globalAlpha = this.opacity * 0.85;
-      ctx.fillStyle = '#E8C674';
-      ctx.shadowColor = 'rgba(201, 169, 78, 0.8)';
-      ctx.shadowBlur = rad * 3;
-      ctx.beginPath();
-      ctx.arc(this.x, this.y, rad, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.globalAlpha = this.opacity * 0.5;
-      ctx.fillStyle = '#FFF8DC';
-      ctx.shadowBlur = 0;
-      ctx.beginPath();
-      ctx.arc(this.x - rad*0.2, this.y - rad*0.2, rad * 0.4, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    };
+    var fadeIn = 120, fadeOut = 200;
+    if(this.life < fadeIn) this.opacity = (this.life / fadeIn) * 0.7;
+    else if(this.life > this.maxLife - fadeOut) this.opacity = ((this.maxLife - this.life) / fadeOut) * 0.7;
+    else this.opacity = 0.5 + Math.random() * 0.2;
+    this.y -= this.speedY;
+    this.x += this.speedX + Math.sin(this.life * this.drift) * 0.08;
+    this.drift += (Math.random() - 0.5) * 0.002;
+  };
+  Particle.prototype.draw = function(){
+    ctx.save();
+    var rad = this.size;
+    var grad = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, rad * 4);
+    grad.addColorStop(0, 'rgba(201, 169, 78, ' + (this.opacity * 0.4) + ')');
+    grad.addColorStop(1, 'rgba(201, 169, 78, 0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, rad * 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = this.opacity * 0.85;
+    ctx.fillStyle = '#E8C674';
+    ctx.shadowColor = 'rgba(201, 169, 78, 0.8)';
+    ctx.shadowBlur = rad * 3;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, rad, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = this.opacity * 0.5;
+    ctx.fillStyle = '#FFF8DC';
+    ctx.shadowBlur = 0;
+    ctx.beginPath();
+    ctx.arc(this.x - rad*0.2, this.y - rad*0.2, rad * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  };
 
-    for(var i = 0; i < MAX; i++){
-      var p = new Particle();
-      p.y = Math.random() * H;
-      p.life = Math.random() * p.maxLife;
-      particles.push(p);
+  for(var i = 0; i < MAX; i++){
+    var p = new Particle();
+    p.y = Math.random() * H;
+    p.life = Math.random() * p.maxLife;
+    particles.push(p);
+  }
+
+  function animate(){
+    ctx.clearRect(0, 0, W, H);
+    for(var i = 0; i < particles.length; i++){
+      particles[i].update();
+      particles[i].draw();
     }
+    requestAnimationFrame(animate);
+  }
+  animate();
+})();
+</script>
 
-    function animate(){
-      ctx.clearRect(0, 0, W, H);
-      for(var i = 0; i < particles.length; i++){
-        particles[i].update();
-        particles[i].draw();
-      }
-      requestAnimationFrame(animate);
-    }
-    animate();
-    })();
-    </script>
-
-    </body>
-    </html>
+</body>
+</html>
