@@ -1284,6 +1284,7 @@
         <div>
           <h2>Safety Reports</h2>
           <p>Upload past safety/security reports to extract knowledge entities</p>
+      <p style="color:var(--text-dim);font-size:0.8rem;margin-top:0.2rem">NUMA does not store your files. Data is saved to your Gmail drafts.</p>
         </div>
       </div>
 
@@ -1300,7 +1301,18 @@
         <div id="report-upload-status" style="margin-top:0.8rem;font-size:0.85rem;color:var(--gold);display:none"></div>
       </div>
 
+      <!-- Sample reports -->
+      <div style="margin-bottom:1.5rem">
+        <p style="color:var(--text-muted);font-size:0.8rem;margin-bottom:0.5rem">Try with sample reports (no upload needed):</p>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+          <button class="btn-s" onclick="loadSampleReport('sample_1')" style="font-size:0.7rem">Hopper Jam</button>
+          <button class="btn-s" onclick="loadSampleReport('sample_2')" style="font-size:0.7rem">Arc Flash</button>
+          <button class="btn-s" onclick="loadSampleReport('sample_3')" style="font-size:0.7rem">Atasco Tolva</button>
+        </div>
+      </div>
+
       <!-- Report list -->
+
       <div class="card-header" style="margin-top:0.5rem">
         <h2 style="font-size:1.1rem">Uploaded Reports</h2>
         <button class="btn-s" onclick="loadReports()" style="font-size:0.7rem">Reload</button>

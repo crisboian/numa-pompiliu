@@ -179,14 +179,16 @@ class ShadowEntry(Base):
 
 
 class SafetyReport(Base):
-    """A safety/security report uploaded by the user. Text extracted for LLM processing."""
+    """A safety/security report uploaded by the user. Text extracted for LLM processing.
+    The actual file data lives in the user's Gmail drafts — NUMA only keeps an index."""
 
     __tablename__ = "safety_reports"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(String(255), nullable=False, index=True)
     original_filename = Column(String(255), nullable=False)
-    stored_filename = Column(String(255), nullable=False)
+    stored_filename = Column(String(255), default="")
+    gmail_draft_id = Column(String(64), default="")
     file_size = Column(Integer, default=0)
     content_type = Column(String(64), default="application/octet-stream")
     text_content = Column(Text, default="")
@@ -201,6 +203,7 @@ class SafetyReport(Base):
             "original_filename": self.original_filename,
             "file_size": self.file_size,
             "content_type": self.content_type,
+            "gmail_draft_id": self.gmail_draft_id,
             "text_content": self.text_content[:500] if self.text_content else "",
             "status": self.status,
             "processing_error": self.processing_error,

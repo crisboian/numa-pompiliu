@@ -685,6 +685,75 @@ async function deleteReport(id) {
   }
 }
 
+async function loadSampleReport(sampleId) {
+  try {
+    const r = await fetch('/api/reports/samples');
+    const d = await r.json();
+    const sample = d.samples.find(s => s.id === sampleId);
+    if (!sample) { showToast('Sample not found', 'error'); return; }
+
+    // Create a hidden "upload" — add directly to the report list as a sample
+    const list = document.getElementById('report-list');
+    if (!list) return;
+
+    // Show the sample in the report list as a "processed" entry
+    const sampleEntry = {
+      id: sample.id,
+      original_filename: sample.title + ' (sample)',
+      file_size: sample.text.length,
+      created_at: new Date().toISOString(),
+      status: 'processed',
+      text_content: sample.text
+    };
+
+    // Insert at top of list
+    const existing = list.innerHTML;
+    const entryHtml = `
+      <div style="background:var(--bg-elevated);border:1px solid var(--gold);border-radius:10px;padding:12px 16px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <div style="font-size:14px;color:var(--gold);font-weight:500">${sample.title}</div>
+          <span style="font-size:10px;padding:2px 8px;border-radius:10px;background:#22c55e;color:#fff">sample</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:6px">${(sample.text.length/1024).toFixed(1)}KB &middot; demo data (not stored)</div>
+        <div style="font-size:12px;color:var(--text-muted);line-height:1.5;max-height:80px;overflow:hidden">${escapeHtml(sample.text.substring(0, 300))}...</div>
+        <div style="margin-top:8px">
+          <button class="btn-p btn-p-sm" onclick="processSampleReport('${sample.id}')" style="font-size:10px;padding:4px 10px">Process &rarr; Graph</button>
+        </div>
+      </div>`;
+
+    list.innerHTML = entryHtml + (existing.includes('No reports') ? '' : existing);
+    showToast('Sample loaded: ' + sample.title, 'success');
+    _sampleReports = d.samples; // store for later processing
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+var _sampleReports = [];
+
+async function processSampleReport(sampleId) {
+  try {
+    const r = await fetch('/api/reports/samples');
+    const d = await r.json();
+    const sample = d.samples.find(s => s.id === sampleId);
+    if (!sample) { showToast('Sample not found', 'error'); return; }
+
+    // Process via the LLM endpoint directly
+    const pr = await fetch('/api/reports/process-sample', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({text: sample.text, title: sample.title})
+    });
+    const pd = await pr.json();
+    if (pd.status === 'ok') {
+      showToast(pd.entities_count + ' entities added to graph', 'success');
+    } else {
+      showToast('Error: ' + (pd.detail || 'Processing failed'), 'error');
+    }
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
 function escapeHtml(text){
   const div=document.createElement('div');
   div.appendChild(document.createTextNode(text||''));

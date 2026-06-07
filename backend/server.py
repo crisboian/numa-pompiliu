@@ -8,6 +8,7 @@ import json
 import logging
 import os
 import uuid
+import uuid
 from contextlib import asynccontextmanager
 from datetime import date, datetime, timezone
 from typing import Any
@@ -15,7 +16,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-from fastapi import Depends, FastAPI, HTTPException, UploadFile, File
+from fastapi import Depends, FastAPI, HTTPException, UploadFile, File, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi import Request
@@ -590,16 +591,13 @@ async def get_chat_history(
 
 @app.get("/api/sessions/{sessio
 
-... [OUTPUT TRUNCATED - 4685 chars omitted out of 54685 total] ...
-
-   "latest": [e.to_dict() for e in latest],
-    }
+... [OUTPUT TRUNCATED - 5845 chars omitted out of 55845 total] ...
 
 
+    return {"status": "ok", "deleted": report_id}
 
-# ─── Reports endpoints (safety/security reports upload) ──────────────────
 
-REPORTS_DIR = os.path.join(os.path.dirname(__file__), "..", "reports")
+# ─── Reports endpoints (safety/security reports) ──────────────────────────
 
 
 @app.post("/api/reports/upload", status_code=201)
@@ -608,27 +606,26 @@ async def upload_report(
     user: dict = Depends(require_auth),
     db: AsyncSession = Depends(get_db),
 ):
+    """Upload a safety report. NUMA does NOT store the file.
+    Extracted text is saved as a Gmail draft in the user's own inbox.
+    NUMA only keeps a lightweight index reference (draft_id + metadata)."""
     user_id = user.get("sub", "")
+    token_info = user.get("token_info")
+    user_email = user.get("email", "")
     if not user_id:
         raise HTTPException(401, "Not authenticated")
 
     ext = os.path.splitext(file.filename or "report")[1].lower()
     if ext not in (".pdf", ".txt", ".md"):
-        raise HTTPException(400, "Only PDF, TXT, MD files are supported")
+        raise HTTPException(400, "Only PDF, TXT, MD files supported")
 
-    os.makedirs(REPORTS_DIR, exist_ok=True)
-    stored_name = f"{user_id}_{uuid.uuid4().hex[:12]}{ext}"
-    file_path = os.path.join(REPORTS_DIR, stored_name)
-    content = await file.read()
-    with open(file_path, "wb") as f:
-        f.write(content)
-
+    raw_bytes = await file.read()
     text_content = ""
     try:
         if ext == ".pdf":
             import subprocess, tempfile
             with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
-                tmp.write(content)
+                tmp.write(raw_bytes)
                 tmp_path = tmp.name
             try:
                 result = subprocess.run(
@@ -639,29 +636,55 @@ async def upload_report(
             finally:
                 os.unlink(tmp_path)
         else:
-            text_content = content.decode("utf-8", errors="replace").strip()
+            text_content = raw_bytes.decode("utf-8", errors="replace").strip()
     except Exception as e:
         logger.warning("Text extraction failed for %s: %s", file.filename, e)
-        text_content = "[Error extracting text]"
 
     if len(text_content) > 50000:
         text_content = text_content[:50000] + "\n[...truncated]"
 
+    # Save as Gmail draft in user's own inbox — NUMA never stores the file
+    draft_id = ""
+    gmail_err = ""
+    if token_info and user_email:
+        try:
+            from gmail_client import create_gmail_draft
+            subject = f"[NUMA] Report: {file.filename}"
+            body = (
+                f"NUMA Safety Report - processed {datetime.now(timezone.utc).isoformat()}\n\n"
+                f"This draft was created by NUMA Capture. "
+                f"The text was extracted from {file.filename}.\n"
+                f"It lives in your Gmail - NUMA does not store it.\n\n"
+                f"{'=' * 50}\n\n"
+                f"{text_content[:30000]}"
+            )
+            draft = create_gmail_draft(token_info, user_email, subject, body)
+            draft_id = draft.get("id", "")
+        except Exception as e:
+            gmail_err = str(e)
+            logger.warning("Gmail draft failed: %s", gmail_err)
+
     report = SafetyReport(
         user_id=user_id,
         original_filename=file.filename or "report",
-        stored_filename=stored_name,
-        file_size=len(content),
+        stored_filename="",
+        gmail_draft_id=draft_id,
+        file_size=len(raw_bytes),
         content_type=file.content_type or "application/octet-stream",
         text_content=text_content or "(empty)",
-        status="uploaded",
+        status="uploaded" if draft_id else "stored_locally",
     )
     db.add(report)
     await db.commit()
     await db.refresh(report)
 
-    logger.info("Report uploaded: %s (%s) by %s", report.original_filename, report.id, user_id)
-    return {"status": "ok", "report": report.to_dict()}
+    return {
+        "status": "ok",
+        "report": report.to_dict(),
+        "note": "NUMA does not store your files. Data saved to your Gmail drafts.",
+        "gmail_draft_id": draft_id or None,
+        "gmail_error": gmail_err or None,
+    }
 
 
 @app.get("/api/reports")
@@ -766,14 +789,93 @@ async def delete_report(
     report = result.scalar_one_or_none()
     if not report:
         raise HTTPException(404, "Report not found")
-
-    file_path = os.path.join(REPORTS_DIR, report.stored_filename)
-    if os.path.exists(file_path):
-        os.unlink(file_path)
-
     await db.delete(report)
     await db.commit()
-    return {"status": "ok", "deleted": report_id}
+    return {"status": "ok", "deleted": report_id, "note": "Original data remains in your Gmail drafts."}
+
+
+@app.get("/api/reports/samples")
+async def get_sample_reports():
+    """Pre-built sample safety reports for demo. No user data involved."""
+    return {"samples": [
+        {
+            "id": "sample_1",
+            "title": "Hopper Jam Incident - Packing Line 3",
+            "language": "en",
+            "text": """INCIDENT REPORT: Hopper Jam - Packing Line 3
+Date: 2025-11-14  Equipment: Model H-2000 Rotary Packer, Hopper Assembly #7
+
+At approximately 14:30, operator noticed the hopper on Line 3 was not feeding material. A foreign object (polypropylene bag fragment, 15cm x 10cm) was lodged between the auger flights and hopper wall. Emergency stop activated. LOTO applied. Foreign object removed.
+
+ROOT CAUSE: Torn bulk bag loaded into receiving hopper two hours prior. Fragment traveled through pneumatic conveying system.
+
+CORRECTIVE ACTIONS: Pre-load inspection checklist. Magnetic separator at receiving hopper (2,400 EUR). Train operators to tag damaged bags.
+
+LESSON: Never assume a small tear is harmless - fragments travel through the entire system."""
+        },
+        {
+            "id": "sample_2",
+            "title": "Arc Flash Near-Miss - Substation B",
+            "language": "en",
+            "text": """NEAR-MISS: Arc Flash - Substation B  Date: 2025-12-02  Equipment: 400V Switchboard, MCC-4
+
+During MCC-4 maintenance, electrician used non-contact voltage tester which failed to detect backup UPS feed. Small arc flash occurred when screwdriver bridged live busbar to grounded frame. Full Cat 2 PPE worn. No injuries.
+
+ROOT CAUSE: Switching procedure only addressed main feed. UPS backup not documented. Non-contact tester unreliable for enclosed busbars.
+
+CORRECTIVE ACTIONS: Update switching diagrams for all MCCs. Mandate contact voltmeters. Label backup feeds.
+
+SAFETY RULE: Always verify zero energy with contact voltmeter - non-contact testers are for screening only."""
+        },
+        {
+            "id": "sample_3",
+            "title": "Atasco en Tolva de Dosificacion",
+            "language": "es",
+            "text": """INFORME: Atasco en Tolva - Linea 2  Fecha: 2025-10-28  Equipo: Dosificador DV-300
+
+La tolva dejo de caer material. Material apelmazado formando un puente de 30cm. Carbonato calcico habia absorbido humedad (linea parada 72h con tolva llena y trampilla abierta).
+
+CAUSA RAIZ: Carbonato calcico higroscopico. Humedad 85% HR por trampilla abierta.
+
+ACCIONES: Vaciado de tolvas si parada >24h. Filtro desecante (180 EUR). Check humedad en arranque.
+
+LECCION: Una trampilla abierta es inofensiva hasta que hay 72h de humedad."""
+        },
+    ]}
+
+
+@app.post("/api/reports/process-sample")
+async def process_sample_report(
+    body: dict,
+    user: dict = Depends(require_auth),
+    db: AsyncSession = Depends(get_db),
+):
+    """Process a sample/demo report text and add entities to the industrial graph.
+    No data is stored — NUMA only provides the processing protocol."""
+    text = body.get("text", "")
+    title = body.get("title", "Sample Report")
+    if not text or len(text) < 50:
+        raise HTTPException(400, "Sample text too short")
+
+    try:
+        from llm import analyze_report_text
+        entities = await analyze_report_text(text)
+        count = 0
+        for ent in entities:
+            ie = IndustrialEntity(
+                entity_type=ent.get("type", "procedure"),
+                name=ent.get("name", "Unknown")[:255],
+                description=ent.get("description", "")[:10000],
+                session_id=None,
+            )
+            db.add(ie)
+            count += 1
+        await db.commit()
+        logger.info("Sample '%s' processed: %d entities to graph", title, count)
+        return {"status": "ok", "entities_count": count, "entities": entities}
+    except Exception as e:
+        logger.error("Sample processing failed: %s", e)
+        raise HTTPException(500, f"Processing failed: {e}")
 
 
 # ─── Industrial Graph endpoints ────────────────────────────────────────────
