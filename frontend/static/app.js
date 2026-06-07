@@ -13,12 +13,13 @@ function handleKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendAn
 /* ── TABS ── */
 function switchTab(tab){
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
-  ['interview','shadow','graph','history','rag','comparativa'].forEach(t=>document.getElementById('screen-'+t).classList.toggle('active',t===tab));
+  ['interview','shadow','graph','history','rag','comparativa','reports'].forEach(t=>document.getElementById('screen-'+t).classList.toggle('active',t===tab));
   if(tab==='shadow')loadShadow();
   if(tab==='graph')renderForceGraph();
   if(tab==='history')loadHistory();
   if(tab==='rag')loadRAG();
   if(tab==='comparativa')loadComparativa();
+  if(tab==='reports')loadReports();
 }
 
 /* ── SESSION ── */
@@ -402,46 +403,11 @@ async function renderForceGraph() {
       .attr('class', 'nDisc')
       .attr('r', d => 10 + (deg[d.id] / maxDeg) * 18)
       .attr('fill', d => palette[d.type]?.fill || '#666')
-      .attr('stroke', d => palette[d.type]?.fill || '#666')
-      .attr('stroke-width', 2)
-      .style('transition', 'stroke 0.15s, stroke-width 0.15s');
 
-    // Inner highlight (3D effect)
-    node.append('circle')
-      .attr('class', 'nHighlight')
-      .attr('r', d => (10 + (deg[d.id] / maxDeg) * 18) * 0.35)
-      .attr('cx', d => -(10 + (deg[d.id] / maxDeg) * 18) * 0.25)
-      .attr('cy', d => -(10 + (deg[d.id] / maxDeg) * 18) * 0.25)
-      .attr('fill', 'rgba(255,255,255,0.15)')
-      .style('pointer-events', 'none');
 
-    // Small type indicator inside node
-    node.append('text')
-      .attr('class', 'nTypeIcon')
-      .text(d => (palette[d.type]?.label || d.type).charAt(0))
-      .attr('font-size', d => Math.max(7, Math.min(13, 8 + (deg[d.id] / maxDeg) * 6)))
-      .attr('font-family', 'var(--serif)')
-      .attr('font-weight', '700')
-      .attr('fill', 'rgba(255,255,255,0.85)')
-      .attr('text-anchor', 'middle')
-      .attr('dy', '0.35em')
-      .style('pointer-events', 'none');
+... [OUTPUT TRUNCATED - 1621 chars omitted out of 51621 total] ...
 
-    // Name label (only for nodes with degree > 0 or hover)
-    node.append('text')
-      .attr('class', 'nLabel')
-      .text(d => d.name.length > 20 ? d.name.substring(0, 19) + '...' : d.name)
-      .attr('dx', d => 16 + (deg[d.id] / maxDeg) * 20)
-      .attr('dy', 4)
-      .attr('font-size', '10px').attr('font-family', 'var(--sans)')
-      .attr('fill', 'var(--text-muted)')
-      .style('pointer-events', 'none')
-      .style('text-shadow', '0 1px 4px rgba(0,0,0,0.9)')
-      .style('opacity', d => deg[d.id] > 0 ? 0.85 : 0);
-
-    // ── Hover highlight ──
-    node.on('mouseenter', function(ev, d) {
-      // Highlight this node
+// Highlight this node
       d3.select(this).selectAll('.nDisc')
         .attr('stroke', 'var(--gold-bright)').attr('stroke-width', 3);
       d3.select(this).select('.nGlow').attr('opacity', 0.8);
@@ -610,6 +576,115 @@ async function saveEntity(){
 }
 
 /* ── UTILITY ── */
+
+/* ── REPORTS (safety/security report upload) ── */
+
+async function loadReports() {
+  const list = document.getElementById('report-list');
+  if (!list) return;
+  list.innerHTML = '<p style="color:var(--text-dim);font-size:0.85rem;text-align:center;padding:2rem"><span class="spinner-text">Loading...</span></p>';
+  try {
+    const r = await fetch('/api/reports');
+    if (!r.ok) { list.innerHTML = '<p style="color:var(--red);font-size:13px;text-align:center;padding:20px">Error loading reports</p>'; return; }
+    const d = await r.json();
+    if (!d.reports || d.reports.length === 0) {
+      list.innerHTML = '<p style="color:var(--text-dim);font-size:0.85rem;text-align:center;padding:2rem">No reports uploaded yet</p>';
+      return;
+    }
+    list.innerHTML = d.reports.map(r => `
+      <div style="background:var(--bg-elevated);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:14px;color:var(--text);font-weight:500">${r.original_filename}</div>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:2px">${new Date(r.created_at).toLocaleString()} &middot; ${(r.file_size/1024).toFixed(1)}KB</div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span style="font-size:11px;padding:3px 10px;border-radius:20px;background:${statusColor(r.status)};color:#fff">${r.status}</span>
+          ${r.status === 'uploaded' ? `<button class="btn-p btn-p-sm" onclick="processReport(${r.id})" style="font-size:10px;padding:4px 10px">Process</button>` : ''}
+          ${r.status === 'processed' ? `<span style="font-size:10px;color:var(--green)">&#10003;</span>` : ''}
+          <button onclick="deleteReport(${r.id})" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:16px;padding:2px 6px">&times;</button>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {
+    list.innerHTML = '<p style="color:var(--red);font-size:13px;text-align:center;padding:20px">Error: ' + e.message + '</p>';
+  }
+}
+
+function statusColor(s) {
+  const colors = {uploaded: '#3b82f6', processing: '#f59e0b', processed: '#22c55e', error: '#ef4444'};
+  return colors[s] || '#6B7488';
+}
+
+async function uploadReport(file) {
+  if (!file) return;
+  const maxSize = 10 * 1024 * 1024;
+  if (file.size > maxSize) { showToast('File too large (max 10MB)', 'error'); return; }
+  const validExts = ['.pdf', '.txt', '.md'];
+  const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+  if (!validExts.includes(ext)) { showToast('Only PDF, TXT, MD files supported', 'error'); return; }
+
+  const statusEl = document.getElementById('report-upload-status');
+  statusEl.style.display = 'block';
+  statusEl.textContent = 'Uploading...';
+  document.getElementById('report-upload-zone').style.pointerEvents = 'none';
+
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    const r = await fetch('/api/reports/upload', { method: 'POST', body: formData });
+    const d = await r.json();
+    if (d.status === 'ok') {
+      statusEl.textContent = 'Uploaded!';
+      statusEl.style.color = 'var(--green)';
+      loadReports();
+    } else {
+      statusEl.textContent = 'Error: ' + (d.detail || 'Unknown');
+      statusEl.style.color = '#ef4444';
+    }
+  } catch(e) {
+    statusEl.textContent = 'Error: ' + e.message;
+    statusEl.style.color = '#ef4444';
+  }
+  setTimeout(() => { statusEl.style.display = 'none'; }, 3000);
+  document.getElementById('report-upload-zone').style.pointerEvents = '';
+}
+
+function handleReportDrop(e) {
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  if (file) uploadReport(file);
+  e.currentTarget.style.borderColor = 'var(--border)';
+}
+
+async function processReport(id) {
+  try {
+    const r = await fetch('/api/reports/' + id + '/process', { method: 'POST' });
+    const d = await r.json();
+    if (d.status === 'ok') {
+      showToast('Processed: ' + d.entities_count + ' entities extracted', 'success');
+      loadReports();
+    } else {
+      showToast('Error: ' + (d.detail || 'Processing failed'), 'error');
+    }
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+async function deleteReport(id) {
+  if (!confirm('Delete this report?')) return;
+  try {
+    const r = await fetch('/api/reports/' + id, { method: 'DELETE' });
+    const d = await r.json();
+    if (d.status === 'ok') {
+      showToast('Report deleted', 'success');
+      loadReports();
+    }
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
 function escapeHtml(text){
   const div=document.createElement('div');
   div.appendChild(document.createTextNode(text||''));

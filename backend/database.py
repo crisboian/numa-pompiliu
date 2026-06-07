@@ -178,6 +178,36 @@ class ShadowEntry(Base):
         }
 
 
+class SafetyReport(Base):
+    """A safety/security report uploaded by the user. Text extracted for LLM processing."""
+
+    __tablename__ = "safety_reports"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String(255), nullable=False, index=True)
+    original_filename = Column(String(255), nullable=False)
+    stored_filename = Column(String(255), nullable=False)
+    file_size = Column(Integer, default=0)
+    content_type = Column(String(64), default="application/octet-stream")
+    text_content = Column(Text, default="")
+    status = Column(String(32), default="uploaded")
+    processing_error = Column(String(512), default="")
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "original_filename": self.original_filename,
+            "file_size": self.file_size,
+            "content_type": self.content_type,
+            "text_content": self.text_content[:500] if self.text_content else "",
+            "status": self.status,
+            "processing_error": self.processing_error,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
 class IndustrialEntity(Base):
     """An entity in the industrial knowledge graph."""
 

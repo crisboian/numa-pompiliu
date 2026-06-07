@@ -1106,6 +1106,7 @@
     <div class="tab" data-tab="history" onclick="switchTab('history')"><span class="tab-num">IV</span> History</div>
     <div class="tab" data-tab="rag" onclick="switchTab('rag')"><span class="tab-num">V</span> RAG</div>
     <div class="tab" data-tab="comparativa" onclick="switchTab('comparativa')"><span class="tab-num">VI</span> Compare</div>
+    <div class="tab" data-tab="reports" onclick="switchTab('reports')"><span class="tab-num">VII</span> Reports</div>
   </div>
 
   <!-- TAB I: INTERVIEW -->
@@ -1272,6 +1273,40 @@
       <div class="comparativa-stats" id="comparativa-stats"></div>
       <div id="comparativa-results" style="max-height:600px;overflow-y:auto">
         <p style="color:var(--text-dim);font-size:0.85rem;text-align:center;padding:2rem">Loading comparison...</p>
+      </div>
+    </div>
+  </div>
+
+    <!-- TAB VII: REPORTS -->
+  <div class="screen" id="screen-reports">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Safety Reports</h2>
+          <p>Upload past safety/security reports to extract knowledge entities</p>
+        </div>
+      </div>
+
+      <!-- Upload zone -->
+      <div id="report-upload-zone" style="border:2px dashed var(--border);border-radius:12px;padding:2.5rem;text-align:center;margin-bottom:1.5rem;cursor:pointer;transition:all 0.3s ease;background:var(--gold-soft);"
+           onclick="document.getElementById('report-file-input').click()"
+           ondragover="event.preventDefault();this.style.borderColor='var(--gold-bright)'"
+           ondragleave="this.style.borderColor='var(--border)'"
+           ondrop="event.preventDefault();handleReportDrop(event)">
+        <input type="file" id="report-file-input" accept=".pdf,.txt,.md" style="display:none" onchange="uploadReport(this.files[0])">
+        <div style="font-family:var(--serif);font-size:2.5rem;color:var(--gold);margin-bottom:0.5rem;font-style:italic">+</div>
+        <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:0.3rem">Drop a safety report here or click to upload</p>
+        <p style="color:var(--text-dim);font-size:0.75rem;font-family:var(--mono)">PDF · TXT · MD &mdash; Max 10MB</p>
+        <div id="report-upload-status" style="margin-top:0.8rem;font-size:0.85rem;color:var(--gold);display:none"></div>
+      </div>
+
+      <!-- Report list -->
+      <div class="card-header" style="margin-top:0.5rem">
+        <h2 style="font-size:1.1rem">Uploaded Reports</h2>
+        <button class="btn-s" onclick="loadReports()" style="font-size:0.7rem">Reload</button>
+      </div>
+      <div id="report-list" style="max-height:400px;overflow-y:auto">
+        <p style="color:var(--text-dim);font-size:0.85rem;text-align:center;padding:2rem">No reports uploaded yet</p>
       </div>
     </div>
   </div>

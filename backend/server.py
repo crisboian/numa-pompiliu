@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import uuid
 from contextlib import asynccontextmanager
 from datetime import date, datetime, timezone
 from typing import Any
@@ -14,7 +15,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi import Request
@@ -29,6 +30,7 @@ from database import (
     IndustrialRelation,
     KnowledgeItem,
     Message,
+    SafetyReport,
     Session,
     ShadowEntry,
     get_db,
@@ -586,158 +588,192 @@ async def get_chat_history(
     }
 
 
-@app.get("/api/sessions/{session_id}/export")
-async def export_session(
-    session_id: str,
-    db: AsyncSession = Depends(get_db),
-):
-    session = await get_session_with_data(db, session_id)
-    if not session:
-        raise HTTPException(404, "Session not found")
+@app.get("/api/sessions/{sessio
 
-    duration_minutes = 0
-    for p in PHASE_ORDER[: PHASE_ORDER.index(Phase(session.current_phase)) + 1]:
-        dur_str = PHASE_DEFINITIONS.get(p.value, {}).get("duration", "0 min")
-        try:
-            duration_minutes += int(dur_str.split()[0])
-        except (ValueError, IndexError):
-            pass
+... [OUTPUT TRUNCATED - 4685 chars omitted out of 54685 total] ...
 
-    export = {
-        "protocol": "NUMA Capture v2.0",
-        "session_id": session.id,
-        "expert": {
-            "name": session.expert_name,
-            "role": session.expert_role,
-            "domain": session.domain,
-            "organization": session.organization,
-        },
-        "status": session.status,
-        "phases_completed": session.current_phase,
-        "duration_minutes": duration_minutes,
-        "knowledge_items": [k.to_dict() for k in session.knowledge_items],
-        "conversation": [
-            {
-                "role": m.role,
-                "phase": m.phase,
-                "content": m.content,
-                "created_at": m.created_at.isoformat() if m.created_at else None,
-            }
-            for m in session.messages
-        ],
-        "created_at": session.created_at.isoformat() if session.created_at else None,
-        "completed_at": session.completed_at.isoformat() if session.completed_at else None,
+   "latest": [e.to_dict() for e in latest],
     }
-    return export
 
 
-@app.get("/api/sessions/{session_id}/progress")
-async def get_progress(
-    session_id: str,
+
+# ─── Reports endpoints (safety/security reports upload) ──────────────────
+
+REPORTS_DIR = os.path.join(os.path.dirname(__file__), "..", "reports")
+
+
+@app.post("/api/reports/upload", status_code=201)
+async def upload_report(
+    file: UploadFile = File(...),
+    user: dict = Depends(require_auth),
     db: AsyncSession = Depends(get_db),
 ):
-    session = await get_session_with_data(db, session_id)
-    if not session:
-        raise HTTPException(404, "Session not found")
+    user_id = user.get("sub", "")
+    if not user_id:
+        raise HTTPException(401, "Not authenticated")
 
-    phases = []
-    for p in PHASE_ORDER:
-        pv = p.value
-        phase_def = PHASE_DEFINITIONS[pv]
-        phase_msgs = [m for m in session.messages if m.phase == pv]
-        max_q = 1 + len(phase_def["prompts"])
-        answered = len([m for m in phase_msgs if m.role == "user"])
-        completed = (
-            answered >= max_q
-            or PHASE_ORDER.index(p) < PHASE_ORDER.index(Phase(session.current_phase))
-        )
-        phases.append({
-            "phase": pv,
-            "name": phase_def["name"],
-            "total_questions": max_q,
-            "answered": answered,
-            "complete": completed,
-            "is_active": pv == session.current_phase and session.status == "in_progress",
-        })
+    ext = os.path.splitext(file.filename or "report")[1].lower()
+    if ext not in (".pdf", ".txt", ".md"):
+        raise HTTPException(400, "Only PDF, TXT, MD files are supported")
 
-    return {"session_id": session.id, "status": session.status, "phases": phases}
+    os.makedirs(REPORTS_DIR, exist_ok=True)
+    stored_name = f"{user_id}_{uuid.uuid4().hex[:12]}{ext}"
+    file_path = os.path.join(REPORTS_DIR, stored_name)
+    content = await file.read()
+    with open(file_path, "wb") as f:
+        f.write(content)
 
-
-# ─── Shadow endpoints ──────────────────────────────────────────────────────
-
-
-@app.post("/api/shadow", status_code=201)
-async def capture_shadow(
-    req: ShadowCaptureRequest,
-    db: AsyncSession = Depends(get_db),
-):
-    entry = ShadowEntry(
-        session_id=req.session_id,
-        expert_name=req.expert_name,
-        content=req.content,
-        category=req.category,
-        context=req.context,
-        tags=req.tags,
-        source="quick",
-    )
-    db.add(entry)
-    await db.commit()
-    await db.refresh(entry)
-    logger.info("Shadow entry #%d captured (%s)", entry.id, req.category)
-
-    # Index into ChromaDB for RAG search
+    text_content = ""
     try:
-        _index_items_to_chroma([{
-            "id": entry.id,
-            "content": f"[Shadow] {req.content}",
-            "category": req.category,
-            "weight": 0.9,
-            "phase": "S",
-        }])
+        if ext == ".pdf":
+            import subprocess, tempfile
+            with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+                tmp.write(content)
+                tmp_path = tmp.name
+            try:
+                result = subprocess.run(
+                    ["pdftotext", tmp_path, "-"],
+                    capture_output=True, text=True, timeout=30
+                )
+                text_content = result.stdout.strip()
+            finally:
+                os.unlink(tmp_path)
+        else:
+            text_content = content.decode("utf-8", errors="replace").strip()
     except Exception as e:
-        logger.warning("ChromaDB indexing for shadow failed: %s", e)
+        logger.warning("Text extraction failed for %s: %s", file.filename, e)
+        text_content = "[Error extracting text]"
 
-    return {"status": "ok", "entry": entry.to_dict()}
+    if len(text_content) > 50000:
+        text_content = text_content[:50000] + "\n[...truncated]"
 
-
-@app.get("/api/shadow")
-async def list_shadow(
-    limit: int = 50,
-    db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(
-        select(ShadowEntry)
-        .order_by(ShadowEntry.created_at.desc())
-        .limit(min(limit, 200))
+    report = SafetyReport(
+        user_id=user_id,
+        original_filename=file.filename or "report",
+        stored_filename=stored_name,
+        file_size=len(content),
+        content_type=file.content_type or "application/octet-stream",
+        text_content=text_content or "(empty)",
+        status="uploaded",
     )
-    entries = result.scalars().all()
-    return {"entries": [e.to_dict() for e in entries]}
+    db.add(report)
+    await db.commit()
+    await db.refresh(report)
+
+    logger.info("Report uploaded: %s (%s) by %s", report.original_filename, report.id, user_id)
+    return {"status": "ok", "report": report.to_dict()}
 
 
-@app.get("/api/shadow/stats")
-async def shadow_stats(
+@app.get("/api/reports")
+async def list_reports(
+    user: dict = Depends(require_auth),
     db: AsyncSession = Depends(get_db),
 ):
-    today = date.today()
-    result = await db.execute(select(ShadowEntry))
-    all_entries = result.scalars().all()
+    user_id = user.get("sub", "")
+    if not user_id:
+        raise HTTPException(401, "Not authenticated")
+    result = await db.execute(
+        select(SafetyReport)
+        .where(SafetyReport.user_id == user_id)
+        .order_by(SafetyReport.created_at.desc())
+    )
+    reports = result.scalars().all()
+    return {"reports": [r.to_dict() for r in reports]}
 
-    today_entries = [
-        e for e in all_entries if e.created_at and e.created_at.date() == today
-    ]
-    categories: dict[str, int] = {}
-    for e in all_entries:
-        categories[e.category] = categories.get(e.category, 0) + 1
-    latest = sorted(
-        all_entries, key=lambda e: e.created_at or datetime.min, reverse=True
-    )[:10]
 
-    return {
-        "today": len(today_entries),
-        "total": len(all_entries),
-        "categories": categories,
-        "latest": [e.to_dict() for e in latest],
-    }
+@app.get("/api/reports/{report_id}")
+async def get_report(
+    report_id: int,
+    user: dict = Depends(require_auth),
+    db: AsyncSession = Depends(get_db),
+):
+    user_id = user.get("sub", "")
+    result = await db.execute(
+        select(SafetyReport).where(
+            SafetyReport.id == report_id,
+            SafetyReport.user_id == user_id,
+        )
+    )
+    report = result.scalar_one_or_none()
+    if not report:
+        raise HTTPException(404, "Report not found")
+    d = report.to_dict()
+    d["text_content"] = report.text_content
+    return {"report": d}
+
+
+@app.post("/api/reports/{report_id}/process")
+async def process_report(
+    report_id: int,
+    user: dict = Depends(require_auth),
+    db: AsyncSession = Depends(get_db),
+):
+    user_id = user.get("sub", "")
+    result = await db.execute(
+        select(SafetyReport).where(
+            SafetyReport.id == report_id,
+            SafetyReport.user_id == user_id,
+        )
+    )
+    report = result.scalar_one_or_none()
+    if not report:
+        raise HTTPException(404, "Report not found")
+    if not report.text_content or report.text_content in ("(empty)", "[Error extracting text]"):
+        raise HTTPException(400, "Report has no extractable text")
+
+    report.status = "processing"
+    await db.commit()
+
+    try:
+        from llm import analyze_report_text
+        entities = await analyze_report_text(report.text_content)
+
+        for ent in entities:
+            ie = IndustrialEntity(
+                entity_type=ent.get("type", "procedure"),
+                name=ent.get("name", "Unknown")[:255],
+                description=ent.get("description", "")[:10000],
+                session_id=None,
+            )
+            db.add(ie)
+
+        report.status = "processed"
+        await db.commit()
+        logger.info("Report %s processed: %d entities extracted", report.id, len(entities))
+        return {"status": "ok", "entities_count": len(entities), "entities": entities}
+
+    except Exception as e:
+        report.status = "error"
+        report.processing_error = str(e)[:512]
+        await db.commit()
+        logger.error("Report %s processing failed: %s", report.id, e)
+        raise HTTPException(500, f"Processing failed: {e}")
+
+
+@app.delete("/api/reports/{report_id}")
+async def delete_report(
+    report_id: int,
+    user: dict = Depends(require_auth),
+    db: AsyncSession = Depends(get_db),
+):
+    user_id = user.get("sub", "")
+    result = await db.execute(
+        select(SafetyReport).where(
+            SafetyReport.id == report_id,
+            SafetyReport.user_id == user_id,
+        )
+    )
+    report = result.scalar_one_or_none()
+    if not report:
+        raise HTTPException(404, "Report not found")
+
+    file_path = os.path.join(REPORTS_DIR, report.stored_filename)
+    if os.path.exists(file_path):
+        os.unlink(file_path)
+
+    await db.delete(report)
+    await db.commit()
+    return {"status": "ok", "deleted": report_id}
 
 
 # ─── Industrial Graph endpoints ────────────────────────────────────────────

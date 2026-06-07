@@ -169,6 +169,7 @@ async def call_llm(
     messages: list[dict[str, str]],
     system_prompt: str = "",
     temperature: float = DEFAULT_TEMPERATURE,
+    max_tokens: int = 512,
 ) -> str | None:
     """Call the LLM and return the response text."""
     if not LLM_API_KEY:
@@ -192,7 +193,7 @@ async def call_llm(
                     "model": LLM_MODEL,
                     "messages": full_messages,
                     "temperature": temperature,
-                    "max_tokens": 512,
+                    "max_tokens": max_tokens,
                 },
             )
             resp.raise_for_status()
@@ -326,3 +327,47 @@ recomendaciones para la organización."""
         f"Sesión completada con {len(all_items)} items de conocimiento "
         f"en {len(PHASE_ORDER)} fases."
     )
+
+
+async def analyze_report_text(text: str) -> list[dict]:
+    """Extract industrial entities (machines, procedures, risks, safety rules, incidents)
+    from a safety report or security document using the LLM."""
+    if not text or len(text.strip()) < 50:
+        return []
+
+    prompt = f"""You are analyzing an industrial safety or security report. Extract key entities as a JSON array.
+
+Each entity is an object with:
+- "name": short descriptive name (max 60 chars)
+- "type": one of "machine", "procedure", "incident", "safety_rule", "regulation", "risk", "tool", "material", "role", "area"
+- "description": one sentence explaining what it is (max 200 chars)
+
+Rules:
+- Extract ONLY entities explicitly mentioned in the text
+- Be specific: "Hopper jamming procedure" not "Procedure"
+- For incidents, include what happened and the consequence
+- For risks, include the hazard and potential outcome
+- For safety rules, include the rule and why it exists
+- Return ONLY a valid JSON array (no markdown, no code fences)
+
+Report text:
+{text[:12000]}"""
+
+    try:
+        response = await call_llm(
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.1,
+            max_tokens=2000,
+        )
+        import json
+        text_resp = response.strip()
+        start = text_resp.find("[")
+        end = text_resp.rfind("]") + 1
+        if start >= 0 and end > start:
+            entities = json.loads(text_resp[start:end])
+            if isinstance(entities, list):
+                return entities[:30]
+        return []
+    except Exception as e:
+        logger.warning("analyze_report_text failed: %s", e)
+        return []
