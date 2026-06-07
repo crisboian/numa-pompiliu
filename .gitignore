@@ -8,6 +8,7 @@ build/
 
 # Environment
 .env
+.env.*real*
 venv/
 .venv/
 
@@ -21,3 +22,7 @@ Thumbs.db
 
 # Claude Code
 .claude/
+
+# Data (runtime persistent storage)
+data/
+*.purchases.json

@@ -165,6 +165,39 @@
 
   .hero-subtitle .keyword { color: var(--gold); font-style: normal; font-weight: 500; }
 
+  .hero-quote {
+    font-family: var(--serif);
+    font-size: clamp(0.9rem, 1.6vw, 1.1rem);
+    font-style: italic;
+    color: var(--gold);
+    max-width: 660px;
+    line-height: 1.6;
+    margin-bottom: 2.5rem;
+    opacity: 0;
+    animation: fadeUp 1s ease 0.65s forwards;
+    position: relative;
+    padding: 0 1rem;
+  }
+  .hero-quote::before {
+    content: '\201C';
+    font-size: 2.5rem;
+    position: absolute;
+    left: -0.8rem;
+    top: -0.3rem;
+    color: rgba(201, 169, 78, 0.2);
+    font-family: var(--serif);
+    line-height: 1;
+  }
+  .hero-quote .break {
+    display: block;
+    margin-top: 0.25rem;
+  }
+  .hero-quote .hl {
+    font-style: normal;
+    font-weight: 500;
+    color: var(--gold-bright);
+  }
+
   .hero-meta {
     display: flex;
     gap: 2rem;
@@ -671,6 +704,8 @@
     <a href="#architecture">Architecture</a>
     <a href="#try">Try It</a>
     <a href="#citation">Cite</a>
+    <a href="#pricing">Pricing</a>
+        <span id="user-info" style="display:none;font-size:0.8rem;color:var(--gold);"></span>
     <a href="/capture" class="nav-cta">Launch Capture →</a>
   </div>
 </nav>
@@ -683,6 +718,11 @@
     Perpetuating <span class="keyword">expert knowledge</span> through
     <span class="keyword">LLM-guided elicitation</span> and
     <span class="keyword">graph-grounded retrieval</span>.
+  </p>
+  <p class="hero-quote">
+    Experience. <span class="hl">Safety.</span>
+    Never making the same mistake twice<span class="break"></span>
+    — <em>decision anticipation through prior knowledge</em>.
   </p>
   <div class="hero-meta">
     <span><span class="dot"></span>Independent Research</span>
@@ -780,6 +820,15 @@
           <p>A 6-month refresh cycle keeps the knowledge graph aligned with evolving practice and feedback.</p>
         </div>
         <div class="protocol-metric">6-month cycle</div>
+      </div>
+
+      <div class="protocol reveal">
+        <div class="protocol-num" style="color:#ef4444">VI</div>
+        <div class="protocol-content">
+          <h3>Negative Knowledge</h3>
+          <p>A dedicated 30-minute phase for costly mistakes, anti-patterns, and safety-critical warnings that no manual records.</p>
+        </div>
+        <div class="protocol-metric" style="border-color:#ef4444;color:#ef4444">Safety-critical</div>
       </div>
     </div>
   </div>
@@ -880,32 +929,195 @@
     </div>
 
     <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:1.5rem; margin:3rem 0;">
-      <div class="stat-card reveal" style="text-align:center;">
-        <div style="font-size:2.5rem; margin-bottom:0.8rem;">🧠</div>
-        <div class="stat-label"><strong>Real LLM Interviewer</strong><br><span style="color:var(--text-dim);font-size:0.85rem;">DeepSeek V4 Flash genera preguntas contextuales basadas en tus respuestas</span></div>
+      <div class="stat-card reveal" style="text-align:center;padding:2.5rem 1.5rem;">
+        <div style="width:72px;height:72px;margin:0 auto 1.2rem auto;display:flex;align-items:center;justify-content:center;">
+          <svg viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:72px;height:72px;">
+  <defs>
+    <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#C9A94E"/>
+      <stop offset="100%" stop-color="#E8C674"/>
+    </linearGradient>
+  </defs>
+  <!-- Brain outline -->
+  <path d="M36 14c-7 0-12 3.5-14 8.5-2.5-1-5.5-.5-7.5 1.5-2.5 2.5-2.5 6.5 0 9-1 2-.5 5 1.5 7s5 2 7.5.5c1 3 4 5.5 8 5.5h9c4 0 7-2.5 8-5.5 2.5 1.5 5.5 1 7.5-.5s2.5-5 1.5-7c2.5-2.5 2.5-6.5 0-9-2-2-5-2.5-7.5-1.5C48 17.5 43 14 36 14z" stroke="url(#g1)" stroke-width="2" fill="none" opacity="0.9"/>
+  <!-- Neural nodes -->
+  <circle cx="28" cy="30" r="2.5" fill="#C9A94E" opacity="0.7"/>
+  <circle cx="44" cy="30" r="2.5" fill="#C9A94E" opacity="0.7"/>
+  <circle cx="36" cy="24" r="2.5" fill="#C9A94E" opacity="0.7"/>
+  <circle cx="36" cy="38" r="2.5" fill="#C9A94E" opacity="0.5"/>
+  <!-- Connections -->
+  <line x1="28" y1="30" x2="36" y2="24" stroke="#C9A94E" stroke-width="1" opacity="0.5"/>
+  <line x1="36" y1="24" x2="44" y2="30" stroke="#C9A94E" stroke-width="1" opacity="0.5"/>
+  <line x1="44" y1="30" x2="36" y2="38" stroke="#E8C674" stroke-width="1" opacity="0.4"/>
+  <line x1="36" y1="38" x2="28" y2="30" stroke="#E8C674" stroke-width="1" opacity="0.4"/>
+  <!-- Chat bubbles -->
+  <path d="M20 46l3-4h6l2 3-2 3h-5z" stroke="#C9A94E" stroke-width="1.2" fill="rgba(201,169,78,0.08)" opacity="0.6"/>
+  <path d="M52 46l-3-4h-6l-2 3 2 3h5z" stroke="#C9A94E" stroke-width="1.2" fill="rgba(201,169,78,0.08)" opacity="0.6"/>
+  <!-- Pulse dots -->
+  <circle cx="36" cy="48" r="1.5" fill="#E8C674" opacity="0.4">
+    <animate attributeName="opacity" values="0.4;1;0.4" dur="2s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="30" cy="48" r="1.5" fill="#E8C674" opacity="0.3">
+    <animate attributeName="opacity" values="0.3;0.8;0.3" dur="2s" begin="0.3s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="42" cy="48" r="1.5" fill="#E8C674" opacity="0.3">
+    <animate attributeName="opacity" values="0.3;0.8;0.3" dur="2s" begin="0.6s" repeatCount="indefinite"/>
+  </circle>
+</svg>
+        </div>
+        <div class="stat-label"><strong>Real LLM Interviewer</strong><br><span style="color:var(--text-dim);font-size:0.85rem;line-height:1.6;">DeepSeek V4 Flash generates contextual questions based on your answers</span></div>
       </div>
-      <div class="stat-card reveal" style="text-align:center;">
-        <div style="font-size:2.5rem; margin-bottom:0.8rem;">📋</div>
-        <div class="stat-label"><strong>4 Fases · ~3.5h</strong><br><span style="color:var(--text-dim);font-size:0.85rem;">Desde mapeo de rol hasta conocimiento no escrito — progresión automática</span></div>
+      <div class="stat-card reveal" style="text-align:center;padding:2.5rem 1.5rem;">
+        <div style="width:72px;height:72px;margin:0 auto 1.2rem auto;display:flex;align-items:center;justify-content:center;">
+          <svg viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:72px;height:72px;">
+  <defs>
+    <linearGradient id="g2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#C9A94E"/>
+      <stop offset="100%" stop-color="#E8C674"/>
+    </linearGradient>
+  </defs>
+  <!-- Progress steps -->
+  <circle cx="16" cy="36" r="8" stroke="url(#g2)" stroke-width="2" fill="rgba(201,169,78,0.08)" opacity="0.7"/>
+  <text x="16" y="40" text-anchor="middle" fill="#C9A94E" font-size="12" font-weight="600" font-family="serif">I</text>
+  <circle cx="36" cy="36" r="8" stroke="url(#g2)" stroke-width="2" fill="rgba(201,169,78,0.08)" opacity="0.7"/>
+  <text x="36" y="40" text-anchor="middle" fill="#C9A94E" font-size="12" font-weight="600" font-family="serif">II</text>
+  <circle cx="56" cy="36" r="8" stroke="url(#g2)" stroke-width="2" fill="rgba(201,169,78,0.08)" opacity="0.7"/>
+  <text x="56" y="40" text-anchor="middle" fill="#C9A94E" font-size="12" font-weight="600" font-family="serif">III</text>
+  <circle cx="36" cy="56" r="8" stroke="url(#g2)" stroke-width="2" fill="rgba(201,169,78,0.08)" opacity="0.7"/>
+  <text x="36" y="60" text-anchor="middle" fill="#C9A94E" font-size="12" font-weight="600" font-family="serif">IV</text>
+  <!-- Connection arrows -->
+  <path d="M24 36l4 0" stroke="#C9A94E" stroke-width="1.5" opacity="0.4" marker-end="url(#arrow)"/>
+  <path d="M44 36l4 0" stroke="#C9A94E" stroke-width="1.5" opacity="0.4"/>
+  <path d="M36 44l0 4" stroke="#E8C674" stroke-width="1.5" opacity="0.4"/>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0l10 5-10 5" fill="#C9A94E" opacity="0.5"/>
+    </marker>
+  </defs>
+  <!-- Pulsing glow on active step -->
+  <circle cx="36" cy="56" r="8" stroke="#E8C674" stroke-width="2" fill="none" opacity="0">
+    <animate attributeName="opacity" values="0;0.5;0" dur="2s" repeatCount="indefinite"/>
+    <animate attributeName="r" values="8;12;8" dur="2s" repeatCount="indefinite"/>
+  </circle>
+  <!-- Clock arc -->
+  <path d="M62 14 A 8 8 0 0 1 66 20" stroke="#C9A94E" stroke-width="1.5" fill="none" opacity="0.4"/>
+  <text x="66" y="14" fill="#C9A94E" font-size="7" opacity="0.5" font-family="mono">~3.5h</text>
+</svg>
+        </div>
+        <div class="stat-label"><strong>4 Phases · ~3.5h</strong><br><span style="color:var(--text-dim);font-size:0.85rem;line-height:1.6;">From role mapping to unwritten knowledge — automatic progression</span></div>
       </div>
-      <div class="stat-card reveal" style="text-align:center;">
-        <div style="font-size:2.5rem; margin-bottom:0.8rem;">📤</div>
-        <div class="stat-label"><strong>Auto-index a RAG</strong><br><span style="color:var(--text-dim);font-size:0.85rem;">Al completar, los items de conocimiento se indexan automáticamente en ChromaDB</span></div>
+      <div class="stat-card reveal" style="text-align:center;padding:2.5rem 1.5rem;">
+        <div style="width:72px;height:72px;margin:0 auto 1.2rem auto;display:flex;align-items:center;justify-content:center;">
+          <svg viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:72px;height:72px;">
+  <defs>
+    <linearGradient id="g3" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#C9A94E"/>
+      <stop offset="100%" stop-color="#E8C674"/>
+    </linearGradient>
+  </defs>
+  <!-- Database cylinder -->
+  <path d="M20 28c0-3 14-5 16-5s16 2 16 5" stroke="url(#g3)" stroke-width="2" fill="rgba(201,169,78,0.05)" opacity="0.8"/>
+  <ellipse cx="36" cy="28" rx="16" ry="5" stroke="url(#g3)" stroke-width="2" fill="rgba(201,169,78,0.08)" opacity="0.8"/>
+  <path d="M20 28v14c0 3 14 5 16 5s16-2 16-5V28" stroke="url(#g3)" stroke-width="2" fill="rgba(201,169,78,0.03)" opacity="0.7"/>
+  <ellipse cx="36" cy="38" rx="16" ry="5" stroke="url(#g3)" stroke-width="1" fill="none" opacity="0.3"/>
+  <ellipse cx="36" cy="48" rx="16" ry="5" stroke="url(#g3)" stroke-width="1" fill="none" opacity="0.15"/>
+  <ellipse cx="36" cy="34" rx="12" ry="3" stroke="url(#g3)" stroke-width="0.8" fill="none" opacity="0.2"/>
+  <ellipse cx="36" cy="42" rx="12" ry="3" stroke="url(#g3)" stroke-width="0.8" fill="none" opacity="0.15"/>
+  <!-- Indexing lines going in -->
+  <path d="M52 20l4-4m-2 8l6-2" stroke="#C9A94E" stroke-width="1.2" opacity="0.5"/>
+  <path d="M20 20l-4-4m2 8l-6-2" stroke="#C9A94E" stroke-width="1.2" opacity="0.5"/>
+  <!-- Chunk dots -->
+  <circle cx="32" cy="32" r="1.5" fill="#E8C674" opacity="0.6">
+    <animate attributeName="opacity" values="0.2;0.8;0.2" dur="1.5s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="38" cy="36" r="1.5" fill="#E8C674" opacity="0.6">
+    <animate attributeName="opacity" values="0.2;0.8;0.2" dur="1.5s" begin="0.4s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="34" cy="40" r="1.5" fill="#E8C674" opacity="0.6">
+    <animate attributeName="opacity" values="0.2;0.8;0.2" dur="1.5s" begin="0.8s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="40" cy="44" r="1.5" fill="#E8C674" opacity="0.6">
+    <animate attributeName="opacity" values="0.2;0.8;0.2" dur="1.5s" begin="1.2s" repeatCount="indefinite"/>
+  </circle>
+  <!-- Search beam -->
+  <path d="M56 54l-7-7" stroke="#C9A94E" stroke-width="1.5" opacity="0.5"/>
+  <circle cx="48" cy="46" r="4" stroke="#E8C674" stroke-width="1.2" fill="none" opacity="0.4">
+    <animate attributeName="r" values="4;6;4" dur="3s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.4;0.1;0.4" dur="3s" repeatCount="indefinite"/>
+  </circle>
+  <path d="M56 54l-7-7" stroke="#E8C674" stroke-width="1" opacity="0.3"/>
+</svg>
+        </div>
+        <div class="stat-label"><strong>Auto-index to RAG</strong><br><span style="color:var(--text-dim);font-size:0.85rem;line-height:1.6;">On completion, knowledge items are automatically indexed in ChromaDB</span></div>
       </div>
+    </div>
     </div>
 
     <div class="reveal" style="text-align:center; margin-top:2rem;">
       <a href="/capture" style="display:inline-block; background:linear-gradient(135deg, var(--gold), var(--gold-bright)); color:var(--bg); padding:1rem 3rem; border-radius:10px; font-weight:700; font-size:1.2rem; text-decoration:none; letter-spacing:0.05em; transition:all 0.3s ease; box-shadow:0 4px 30px rgba(201,169,78,0.3);" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 40px rgba(201,169,78,0.4)';" onmouseout="this.style.transform='';this.style.boxShadow='0 4px 30px rgba(201,169,78,0.3)';">Start NUMA Capture →</a>
-      <p style="color:var(--text-dim); font-family:var(--mono); font-size:0.75rem; margin-top:1rem; letter-spacing:0.1em;">No requiere registro · Datos guardados localmente</p>
+      <p style="color:var(--text-dim); font-family:var(--mono); font-size:0.75rem; margin-top:1rem; letter-spacing:0.1em;">No registration required · Data stored locally</p>
     </div>
   </div>
 </section>
 
 <!-- CITATION -->
+
+<!-- PRICING -->
+<section id="pricing" class="protocols-section">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-eyebrow">05 · Pricing</div>
+      <h2 class="section-title">Unlock the <em>full report</em>.</h2>
+      <p class="section-lead">
+        The capture interview is free. When you need the structured report — validated knowledge graph, 
+        full ontology, and exportable deliverables — choose a plan that fits.
+      </p>
+    </div>
+
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap:1.5rem; margin:3rem 0;">
+      <div class="stat-card reveal" style="text-align:center;">
+        <div style="font-family:var(--serif);font-size:1.8rem;font-weight:600;color:var(--gold);margin-bottom:0.3rem;">Free</div>
+        <div style="font-size:0.9rem;color:var(--text-muted);margin-bottom:0.2rem;">Basic Report</div>
+        <div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:1rem;letter-spacing:0.05em;">1 operator</div>
+        <div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:1.5rem;line-height:1.6;">
+          Knowledge items summary<br>
+          Entity-relation diagram<br>
+          Markdown export
+        </div>
+        <button onclick="buyReport('report_basic')" class="nav-cta" style="border:none;cursor:pointer;font-size:0.9rem;">Get Free</button>
+      </div>
+      <div class="stat-card reveal" style="text-align:center;border-color:var(--gold);">
+        <div style="font-family:var(--serif);font-size:1.8rem;font-weight:600;color:var(--gold);margin-bottom:0.3rem;">19 €</div>
+        <div style="font-size:0.9rem;color:var(--text-muted);margin-bottom:0.2rem;">Pro Report</div>
+        <div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:1rem;letter-spacing:0.05em;">1 operator</div>
+        <div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:1.5rem;line-height:1.6;">
+          Everything in Basic<br>
+          Full knowledge graph (JSON/GraphML)<br>
+          Confidence-calibrated judgments<br>
+          RAG-ready index
+        </div>
+        <button onclick="buyReport('report_pro')" class="nav-cta" style="border:none;cursor:pointer;font-size:0.9rem;">Buy Now</button>
+      </div>
+      <div class="stat-card reveal" style="text-align:center;">
+        <div style="font-family:var(--serif);font-size:1.8rem;font-weight:600;color:var(--gold);margin-bottom:0.3rem;">49 €</div>
+        <div style="font-size:0.9rem;color:var(--text-muted);margin-bottom:0.2rem;">Enterprise Report</div>
+        <div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:1rem;letter-spacing:0.05em;">Up to 6 operators</div>
+        <div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:1.5rem;line-height:1.6;">
+          Everything in Pro<br>
+          Tailored ontology design<br>
+          Multi-expert merge<br>
+          Priority support & onboarding
+        </div>
+        <button onclick="buyReport('report_enterprise')" class="nav-cta" style="border:none;cursor:pointer;font-size:0.9rem;">Buy Now</button>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section id="citation">
   <div class="container" style="max-width: 900px;">
     <div class="reveal">
-      <div class="section-eyebrow">05 · Citation</div>
+      <div class="section-eyebrow">07 · Citation</div>
       <h2 class="section-title">Cite this <em>work</em>.</h2>
       <p class="section-lead">
         If NUMA contributes to your research or practice, please cite the source paper.
@@ -934,7 +1146,8 @@
 <footer>
   <div class="footer-logo">NUMA</div>
   <div class="footer-text">Built by <a href="mailto:cristianboian@gmail.com">Cristian Boian</a> · Independent Research · MIT License</div>
-  <div class="footer-text" style="font-style:italic;font-family:var(--serif);">"Numa Pompilius — the lawgiver who codified what came before him."</div>
+  <div class="footer-text"><a href="/security">Privacy &amp; Security</a> · <a href="https://github.com/cristianboian/numa-pompiliu" target="_blank">GitHub</a></div>
+  <div class="footer-text" style="font-style:italic;font-family:var(--serif);">"Numa Pompiliu — the lawgiver who codified what came before him."</div>
   <div class="footer-meta">© 2026 · ALL PROTOCOLS OPEN</div>
 </footer>
 
@@ -972,5 +1185,75 @@
   }
 </script>
 
+
+<!-- Auth + Stripe -->
+<script>
+// Global auth state for nav-cta
+var _numaUser = null;
+
+async function checkAuth() {
+  try {
+    const res = await fetch('/auth/me', { cache: 'no-store' });
+    const data = await res.json();
+    const userInfo = document.getElementById('user-info');
+    if (data.authenticated && userInfo) {
+      _numaUser = data;
+      userInfo.style.display = 'inline';
+      userInfo.innerHTML = data.email + ' | <a href="/auth/logout" style="color:var(--text-dim);text-decoration:none;font-size:0.75rem" onclick="event.preventDefault();numaLogout()">logout</a>';
+    } else { _numaUser = null; }
+  } catch (e) { _numaUser = null; }
+}
+async function numaLogout() {
+  await fetch('/auth/logout', {method:'POST'});
+  location.reload();
+}
+async function buyReport(productKey) {
+  // Require a logged-in user — the buyer's stable Google "sub" identifier is
+  // used as the session_id Stripe will echo back via webhook metadata, so the
+  // /report/{session_id} endpoint can grant access to the right person.
+  let me;
+  try {
+    me = await (await fetch('/auth/me')).json();
+  } catch (e) {
+    alert('Connection error: ' + e.message);
+    return;
+  }
+  if (!me || !me.authenticated || !me.sub) {
+    window.location.href = '/auth/google/login';
+    return;
+  }
+  const sessionId = me.sub;
+  try {
+    const res = await fetch('/api/stripe/create-checkout-session', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({session_id: sessionId, product_key: productKey})
+    });
+    const data = await res.json();
+    if (data.url) {
+      window.location.href = data.url;
+    } else {
+      alert('Error: ' + (data.detail || 'Could not create checkout session'));
+    }
+  } catch(e) {
+    alert('Connection error: ' + e.message);
+  }
+}
+
+// Smart Launch Capture: check auth state before navigating
+document.addEventListener('click', function(e) {
+  var target = e.target.closest('a');
+  if (target && target.classList.contains('nav-cta') && target.getAttribute('href') === '/capture') {
+    e.preventDefault();
+    if (_numaUser) {
+      location.href = '/capture';
+    } else {
+      location.href = '/auth/google/login';
+    }
+  }
+});
+
+checkAuth();
+</script>
 </body>
 </html>

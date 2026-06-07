@@ -1,0 +1,1259 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NUMA — Preservando el Conocimiento Experto</title>
+<meta name="description" content="NUMA: Preservando el Conocimiento Experto mediante Extracción Guiada por LLM y Recuperación Basada en Grafos.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230A0E1A'/%3E%3Ctext x='50%25' y='54%25' text-anchor='middle' font-family='Georgia,serif' font-size='34' font-weight='700' fill='%23C9A94E' dominant-baseline='middle'%3EN%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #0A0E1A;
+    --bg-elevated: #0F1525;
+    --bg-card: rgba(20, 27, 48, 0.55);
+    --border: rgba(201, 169, 78, 0.18);
+    --border-strong: rgba(201, 169, 78, 0.45);
+    --gold: #C9A94E;
+    --gold-bright: #E8C674;
+    --gold-soft: rgba(201, 169, 78, 0.08);
+    --text: #E8EAF0;
+    --text-muted: #9AA3B8;
+    --text-dim: #6B7488;
+    --serif: 'Cormorant Garamond', 'Playfair Display', Georgia, 'Times New Roman', serif;
+    --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.65;
+    font-size: 16px;
+    overflow-x: hidden;
+    background-image:
+      radial-gradient(circle at 15% 10%, rgba(201, 169, 78, 0.06) 0%, transparent 35%),
+      radial-gradient(circle at 85% 80%, rgba(201, 169, 78, 0.04) 0%, transparent 40%);
+    background-attachment: fixed;
+  }
+
+  ::selection { background: var(--gold); color: var(--bg); }
+
+  /* Navigation */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    padding: 1.25rem 2rem;
+    background: rgba(10, 14, 26, 0.75);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: padding 0.3s ease;
+  }
+
+  nav.scrolled { padding: 0.85rem 2rem; }
+
+  .nav-logo {
+    font-family: var(--serif);
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--gold);
+    letter-spacing: 0.15em;
+  }
+
+  .nav-links { display: flex; gap: 2rem; }
+  .nav-links a {
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    transition: color 0.25s ease;
+  }
+  .nav-links a:hover { color: var(--gold); }
+  .nav-cta {
+    background: var(--gold);
+    color: var(--bg) !important;
+    padding: 0.4rem 1rem;
+    border-radius: 6px;
+    font-weight: 600;
+  }
+  .nav-cta:hover { background: var(--gold-bright) !important; color: var(--bg) !important; }
+
+  /* Container */
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+  }
+
+  /* Hero */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    position: relative;
+    padding: 8rem 2rem 4rem;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at center, rgba(201, 169, 78, 0.08) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  .hero-eyebrow {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--gold);
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    margin-bottom: 2rem;
+    opacity: 0;
+    animation: fadeUp 0.9s ease 0.1s forwards;
+  }
+
+  .hero-eyebrow::before, .hero-eyebrow::after {
+    content: '— ';
+    color: var(--gold);
+    opacity: 0.5;
+  }
+  .hero-eyebrow::after { content: ' —'; }
+
+  .hero-logo {
+    font-family: var(--serif);
+    font-size: clamp(5rem, 18vw, 13rem);
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    line-height: 1;
+    background: linear-gradient(180deg, var(--gold-bright) 0%, var(--gold) 50%, #8B7530 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 1.5rem;
+    opacity: 0;
+    animation: fadeUp 1s ease 0.3s forwards;
+    text-shadow: 0 0 80px rgba(201, 169, 78, 0.2);
+  }
+
+  .hero-subtitle {
+    font-family: var(--serif);
+    font-size: clamp(1.1rem, 2.3vw, 1.6rem);
+    font-weight: 400;
+    font-style: italic;
+    color: var(--text);
+    max-width: 780px;
+    line-height: 1.5;
+    margin-bottom: 3rem;
+    opacity: 0;
+    animation: fadeUp 1s ease 0.5s forwards;
+  }
+
+  .hero-subtitle .keyword { color: var(--gold); font-style: normal; font-weight: 500; }
+
+  .hero-quote {
+    font-family: var(--serif);
+    font-size: clamp(0.9rem, 1.6vw, 1.1rem);
+    font-style: italic;
+    color: var(--gold);
+    max-width: 660px;
+    line-height: 1.6;
+    margin-bottom: 2.5rem;
+    opacity: 0;
+    animation: fadeUp 1s ease 0.65s forwards;
+    position: relative;
+    padding: 0 1rem;
+  }
+  .hero-quote::before {
+    content: '\201C';
+    font-size: 2.5rem;
+    position: absolute;
+    left: -0.8rem;
+    top: -0.3rem;
+    color: rgba(201, 169, 78, 0.2);
+    font-family: var(--serif);
+    line-height: 1;
+  }
+  .hero-quote .break {
+    display: block;
+    margin-top: 0.25rem;
+  }
+  .hero-quote .hl {
+    font-style: normal;
+    font-weight: 500;
+    color: var(--gold-bright);
+  }
+
+  .hero-meta {
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    opacity: 0;
+    animation: fadeUp 1s ease 0.7s forwards;
+  }
+
+  .hero-meta span { display: flex; align-items: center; gap: 0.5rem; }
+  .hero-meta .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--gold);
+    box-shadow: 0 0 8px var(--gold);
+  }
+
+  .scroll-hint {
+    position: absolute;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    opacity: 0;
+    animation: fadeIn 1s ease 1.5s forwards, bounce 2s ease-in-out 2s infinite;
+  }
+
+  /* Section base */
+  section {
+    padding: 7rem 0;
+    position: relative;
+  }
+
+  .section-eyebrow {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--gold);
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+  }
+
+  .section-eyebrow::before {
+    content: '';
+    width: 30px;
+    height: 1px;
+    background: var(--gold);
+  }
+
+  .section-title {
+    font-family: var(--serif);
+    font-size: clamp(2rem, 4.5vw, 3.2rem);
+    font-weight: 600;
+    line-height: 1.15;
+    margin-bottom: 2rem;
+    color: var(--text);
+  }
+
+  .section-title em { color: var(--gold); font-style: italic; }
+
+  .section-lead {
+    font-family: var(--serif);
+    font-size: 1.25rem;
+    color: var(--text-muted);
+    max-width: 720px;
+    line-height: 1.55;
+    margin-bottom: 4rem;
+  }
+
+  /* Problem section */
+  .problem-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-top: 3rem;
+  }
+
+  .stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2.5rem 2rem;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    transition: all 0.35s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .stat-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--border-strong);
+    background: rgba(20, 27, 48, 0.75);
+  }
+  .stat-card:hover::before { opacity: 1; }
+
+  .stat-number {
+    font-family: var(--serif);
+    font-size: 3.5rem;
+    font-weight: 700;
+    color: var(--gold);
+    line-height: 1;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: baseline;
+    gap: 0.3rem;
+  }
+  .stat-number .unit {
+    font-size: 1.5rem;
+    color: var(--gold-bright);
+    opacity: 0.8;
+  }
+
+  .stat-label {
+    font-size: 0.95rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  .stat-source {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+  }
+
+  /* Protocols */
+  .protocols-section {
+    background: linear-gradient(180deg, transparent, rgba(15, 21, 37, 0.4), transparent);
+  }
+
+  .protocol-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-top: 3rem;
+  }
+
+  .protocol {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem 2.5rem;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 2rem;
+    align-items: center;
+    transition: all 0.35s ease;
+    cursor: default;
+  }
+
+  .protocol:hover {
+    border-color: var(--border-strong);
+    transform: translateX(4px);
+    background: rgba(20, 27, 48, 0.75);
+  }
+
+  .protocol-num {
+    font-family: var(--serif);
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--gold);
+    font-style: italic;
+    min-width: 60px;
+    line-height: 1;
+    opacity: 0.85;
+  }
+
+  .protocol-content h3 {
+    font-family: var(--serif);
+    font-size: 1.6rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 0.4rem;
+  }
+  .protocol-content p {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    line-height: 1.55;
+  }
+
+  .protocol-metric {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--gold);
+    background: var(--gold-soft);
+    border: 1px solid var(--border);
+    padding: 0.6rem 1rem;
+    border-radius: 6px;
+    white-space: nowrap;
+    letter-spacing: 0.05em;
+  }
+
+  /* Results */
+  .results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.5rem;
+    margin-top: 3rem;
+  }
+
+  .result-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2.5rem 2rem;
+    text-align: center;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    transition: all 0.35s ease;
+    position: relative;
+  }
+
+  .result-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--border-strong);
+    box-shadow: 0 20px 40px -20px rgba(201, 169, 78, 0.15);
+  }
+
+  .result-value {
+    font-family: var(--serif);
+    font-size: 3rem;
+    font-weight: 700;
+    background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    line-height: 1;
+    margin-bottom: 0.8rem;
+  }
+
+  .result-label {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    line-height: 1.4;
+  }
+
+  /* Architecture diagram */
+  .architecture {
+    margin-top: 3rem;
+    padding: 3rem 2rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    overflow-x: auto;
+  }
+
+  .pipeline {
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    gap: 0.5rem;
+    min-width: 720px;
+    margin: 0 auto;
+  }
+
+  .pipeline-step {
+    flex: 1;
+    background: linear-gradient(180deg, rgba(201, 169, 78, 0.04), transparent);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.5rem 1rem;
+    text-align: center;
+    transition: all 0.3s ease;
+    position: relative;
+    min-width: 110px;
+  }
+
+  .pipeline-step:hover {
+    background: linear-gradient(180deg, rgba(201, 169, 78, 0.12), rgba(201, 169, 78, 0.02));
+    border-color: var(--border-strong);
+    transform: translateY(-3px);
+  }
+
+  .pipeline-icon {
+    font-family: var(--serif);
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--gold);
+    margin-bottom: 0.6rem;
+    font-style: italic;
+  }
+
+  .pipeline-name {
+    font-family: var(--serif);
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 0.4rem;
+  }
+
+  .pipeline-desc {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+    line-height: 1.4;
+  }
+
+  .pipeline-arrow {
+    display: flex;
+    align-items: center;
+    color: var(--gold);
+    font-size: 1.5rem;
+    opacity: 0.5;
+    min-width: 20px;
+    justify-content: center;
+  }
+
+  .pipeline-legend {
+    margin-top: 2rem;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+  }
+
+  /* Citation */
+  .citation-block {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem;
+    margin-top: 2rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .citation-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .citation-label {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--gold);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+
+  .copy-btn {
+    background: var(--gold-soft);
+    border: 1px solid var(--border);
+    color: var(--gold);
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    cursor: pointer;
+    letter-spacing: 0.05em;
+    transition: all 0.25s ease;
+  }
+
+  .copy-btn:hover {
+    background: rgba(201, 169, 78, 0.15);
+    border-color: var(--border-strong);
+    color: var(--gold-bright);
+  }
+
+  .copy-btn.copied {
+    background: var(--gold);
+    color: var(--bg);
+    border-color: var(--gold);
+  }
+
+  .citation-code {
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    color: var(--text);
+    line-height: 1.7;
+    overflow-x: auto;
+    white-space: pre;
+    padding: 0;
+  }
+
+  .citation-code .key { color: var(--gold); }
+  .citation-code .field { color: #7BA7C6; }
+  .citation-code .value { color: var(--text); }
+
+  /* Footer */
+  footer {
+    padding: 4rem 2rem 3rem;
+    border-top: 1px solid var(--border);
+    text-align: center;
+    background: rgba(10, 14, 26, 0.5);
+  }
+
+  .footer-logo {
+    font-family: var(--serif);
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--gold);
+    letter-spacing: 0.2em;
+    margin-bottom: 1rem;
+  }
+
+  .footer-text {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .footer-text a {
+    color: var(--gold);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.25s;
+  }
+  .footer-text a:hover { border-bottom-color: var(--gold); }
+
+  .footer-meta {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    letter-spacing: 0.15em;
+    margin-top: 1.5rem;
+  }
+
+  /* Animations */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes bounce {
+    0%, 100% { transform: translate(-50%, 0); }
+    50% { transform: translate(-50%, -8px); }
+  }
+
+  .reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.8s ease, transform 0.8s ease;
+  }
+
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    nav { padding: 1rem; }
+    .nav-links { display: none; }
+    .container { padding: 0 1.25rem; }
+    section { padding: 5rem 0; }
+    .protocol {
+      grid-template-columns: 1fr;
+      gap: 1rem;
+      padding: 1.75rem;
+      text-align: center;
+    }
+    .protocol-num { margin: 0 auto; }
+    .protocol-metric { justify-self: center; }
+    .hero { padding-top: 6rem; }
+  }
+</style>
+</head>
+<body>
+
+<nav id="nav">
+  <div class="nav-logo">NUMA</div>
+  <div class="nav-links">
+    <a href="#problem">Problema</a>
+    <a href="#protocols">Protocolos</a>
+    <a href="#results">Resultados</a>
+    <a href="#architecture">Arquitectura</a>
+    <a href="#try">Pruébalo</a>
+    <a href="#citation">Citar</a>
+    <a href="#pricing">Precios</a>
+        <span id="user-info" style="display:none;font-size:0.8rem;color:var(--gold);"></span>
+    <a href="/capture" class="nav-cta">Iniciar Captura →</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="hero-eyebrow">Un Protocolo de Investigación</div>
+  <h1 class="hero-logo">NUMA</h1>
+  <p class="hero-subtitle">
+    Perpetuando el <span class="keyword">conocimiento experto</span> mediante
+    <span class="keyword">elicitación guiada por LLM</span> y
+    <span class="keyword">recuperación basada en grafos</span>.
+  </p>
+  <p class="hero-quote">
+    Experiencia. <span class="hl">Seguridad.</span>
+    No cometer dos veces el mismo error<span class="break"></span>
+    — <em>anticipación de decisiones mediante conocimiento previo</em>.
+  </p>
+  <div class="hero-meta">
+    <span><span class="dot"></span>Investigación Independiente</span>
+    <span><span class="dot"></span>5 Protocolos</span>
+    <span><span class="dot"></span>Código Abierto · MIT</span>
+  </div>
+  <div class="scroll-hint">SCROLL ↓</div>
+</header>
+
+<!-- PROBLEM -->
+<section id="problem">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-eyebrow">01 · El Problema</div>
+      <h2 class="section-title">El conocimiento tácito está <em>desapareciendo</em>, y no tenemos un protocolo para preservarlo.</h2>
+      <p class="section-lead">
+        Cada año, décadas de conocimiento irremplazable se pierden. Las organizaciones dependen de documentación obsoleta,
+        wikis aislados y mentorías informales — nada de ello escala ante el cambio demográfico en curso.
+      </p>
+    </div>
+
+    <div class="problem-grid">
+      <div class="stat-card reveal">
+        <div class="stat-number">75<span class="unit">%</span></div>
+        <div class="stat-label">de las organizaciones carece de una estrategia formal para capturar el conocimiento de expertos que se marchan.</div>
+        <div class="stat-source">Industry surveys · 2023–2024</div>
+      </div>
+      <div class="stat-card reveal">
+        <div class="stat-number">1.2<span class="unit">M</span></div>
+        <div class="stat-label">jubilados al año solo en España — la memoria institucional se va con ellos.</div>
+        <div class="stat-source">INE projections · 2025–2035</div>
+      </div>
+      <div class="stat-card reveal">
+        <div class="stat-number">365<span class="unit">B€</span></div>
+        <div class="stat-label">pérdida anual estimada en sectores intensivos en conocimiento de la UE.</div>
+        <div class="stat-source">Economic impact analysis</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PROTOCOLS -->
+<section id="protocols" class="protocols-section">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-eyebrow">02 · El Método</div>
+      <h2 class="section-title">Cinco protocolos, <em>un ciclo continuo</em>.</h2>
+      <p class="section-lead">
+        NUMA estructura la transferencia de conocimiento experto como un pipeline reproducible — desde la elicitación inicial
+        hasta el mantenimiento a largo plazo, cada paso está especificado y es medible.
+      </p>
+    </div>
+
+    <div class="protocol-list">
+      <div class="protocol reveal">
+        <div class="protocol-num">I</div>
+        <div class="protocol-content">
+          <h3>Captura</h3>
+          <p>Una entrevista estructurada de 3.5h guiada por LLM extrae conocimiento tácito mediante preguntas adaptativas.</p>
+        </div>
+        <div class="protocol-metric">3.5h entrevista</div>
+      </div>
+
+      <div class="protocol reveal">
+        <div class="protocol-num">II</div>
+        <div class="protocol-content">
+          <h3>Estructura</h3>
+          <p>El conocimiento se descompone en una ontología de 3 niveles: <em>Hechos</em> (objetivo), <em>Juicios</em> (razonado), <em>Intuiciones</em> (heurístico).</p>
+        </div>
+        <div class="protocol-metric">ontología 3 niveles</div>
+      </div>
+
+      <div class="protocol reveal">
+        <div class="protocol-num">III</div>
+        <div class="protocol-content">
+          <h3>Validación</h3>
+          <p>Una batería canónica de 20 preguntas sondea cobertura, contradicciones y calibración de confianza.</p>
+        </div>
+        <div class="protocol-metric">20 preguntas</div>
+      </div>
+
+      <div class="protocol reveal">
+        <div class="protocol-num">IV</div>
+        <div class="protocol-content">
+          <h3>Acceso</h3>
+          <p>Recuperación basada en grafos con Reciprocal Rank Fusion (k = 60) unifica señales densas y dispersas.</p>
+        </div>
+        <div class="protocol-metric">RRF · k=60</div>
+      </div>
+
+      <div class="protocol reveal">
+        <div class="protocol-num">V</div>
+        <div class="protocol-content">
+          <h3>Mantenimiento</h3>
+          <p>Un ciclo de actualización de 6 meses mantiene el grafo de conocimiento alineado con la práctica y el feedback.</p>
+        </div>
+        <div class="protocol-metric">ciclo 6 meses</div>
+      </div>
+
+      <div class="protocol reveal">
+        <div class="protocol-num" style="color:#ef4444">VI</div>
+        <div class="protocol-content">
+          <h3>Conocimiento Negativo</h3>
+          <p>Una fase dedicada de 30 minutos para errores costosos, anti-patrones y advertencias de seguridad crítica que ningún manual registra.</p>
+        </div>
+        <div class="protocol-metric" style="border-color:#ef4444;color:#ef4444">Seguridad crítica</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- RESULTS -->
+<section id="results">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-eyebrow">03 · Resultados Medidos</div>
+      <h2 class="section-title">Resultados empíricos del piloto <em>Pompiliu</em>.</h2>
+      <p class="section-lead">
+        El primer despliegue de NUMA sobre un corpus real de experto produjo mejoras medibles en eficiencia de recuperación,
+        fidelidad semántica y latencia extremo a extremo.
+      </p>
+    </div>
+
+    <div class="results-grid">
+      <div class="result-card reveal">
+        <div class="result-value">64.8%</div>
+        <div class="result-label">Reducción de tokens frente a RAG tradicional</div>
+      </div>
+      <div class="result-card reveal">
+        <div class="result-value">1</div>
+        <div class="result-label">Una sola invocación por consulta (vs. cadenas multi-salto)</div>
+      </div>
+      <div class="result-card reveal">
+        <div class="result-value">67%</div>
+        <div class="result-label">Superposición de keywords con respuestas validadas por experto</div>
+      </div>
+      <div class="result-card reveal">
+        <div class="result-value">233–649<span style="font-size:1.2rem;color:var(--gold-bright);"> ms</span></div>
+        <div class="result-label">Latencia extremo a extremo según complejidad de consulta</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ARCHITECTURE -->
+<section id="architecture" class="protocols-section">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-eyebrow">04 · Arquitectura del Sistema</div>
+      <h2 class="section-title">Un <em>pipeline</em>, no un producto.</h2>
+      <p class="section-lead">
+        Cada etapa produce artefactos verificables que alimentan la siguiente. El bucle de mantenimiento cierra de vuelta a la captura,
+        haciendo de NUMA un sistema de conocimiento continuo en lugar de una extracción única.
+      </p>
+    </div>
+
+    <div class="architecture reveal">
+      <div class="pipeline">
+        <div class="pipeline-step">
+          <div class="pipeline-icon">I</div>
+          <div class="pipeline-name">Captura</div>
+          <div class="pipeline-desc">ENTREVISTA<br>CON LLM</div>
+        </div>
+        <div class="pipeline-arrow">→</div>
+        <div class="pipeline-step">
+          <div class="pipeline-icon">II</div>
+          <div class="pipeline-name">Estructura</div>
+          <div class="pipeline-desc">ONTOLOGÍA<br>3 NIVELES</div>
+        </div>
+        <div class="pipeline-arrow">→</div>
+        <div class="pipeline-step">
+          <div class="pipeline-icon">III</div>
+          <div class="pipeline-name">Validación</div>
+          <div class="pipeline-desc">BATERÍA DE<br>20 PREGUNTAS</div>
+        </div>
+        <div class="pipeline-arrow">→</div>
+        <div class="pipeline-step">
+          <div class="pipeline-icon">IV</div>
+          <div class="pipeline-name">Acceso</div>
+          <div class="pipeline-desc">RECUPERACIÓN<br>RRF</div>
+        </div>
+        <div class="pipeline-arrow">→</div>
+        <div class="pipeline-step">
+          <div class="pipeline-icon">V</div>
+          <div class="pipeline-name">Mantenimiento</div>
+          <div class="pipeline-desc">ACTUALIZACIÓN<br>6 MESES</div>
+        </div>
+      </div>
+      <div class="pipeline-legend">↻ El bucle de mantenimiento retroalimenta a Captura · Evolución continua del conocimiento</div>
+    </div>
+  </div>
+</section>
+
+<!-- TRY CAPTURE -->
+<section id="try" class="protocols-section">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-eyebrow">06 · Pruébalo</div>
+      <h2 class="section-title">Captura conocimiento <em>ahora mismo</em>.</h2>
+      <p class="section-lead">
+        NUMA Capture es una herramienta web autogestionada que guía a un experto a través de la entrevista de 4 fases.
+        Sin instalación, sin configuración — solo un navegador.
+      </p>
+    </div>
+
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:1.5rem; margin:3rem 0;">
+      <div class="stat-card reveal" style="text-align:center;padding:2.5rem 1.5rem;">
+        <div style="width:72px;height:72px;margin:0 auto 1.2rem auto;display:flex;align-items:center;justify-content:center;">
+          <svg viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:72px;height:72px;">
+  <defs>
+    <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#C9A94E"/>
+      <stop offset="100%" stop-color="#E8C674"/>
+    </linearGradient>
+  </defs>
+  <!-- Brain outline -->
+  <path d="M36 14c-7 0-12 3.5-14 8.5-2.5-1-5.5-.5-7.5 1.5-2.5 2.5-2.5 6.5 0 9-1 2-.5 5 1.5 7s5 2 7.5.5c1 3 4 5.5 8 5.5h9c4 0 7-2.5 8-5.5 2.5 1.5 5.5 1 7.5-.5s2.5-5 1.5-7c2.5-2.5 2.5-6.5 0-9-2-2-5-2.5-7.5-1.5C48 17.5 43 14 36 14z" stroke="url(#g1)" stroke-width="2" fill="none" opacity="0.9"/>
+  <!-- Neural nodes -->
+  <circle cx="28" cy="30" r="2.5" fill="#C9A94E" opacity="0.7"/>
+  <circle cx="44" cy="30" r="2.5" fill="#C9A94E" opacity="0.7"/>
+  <circle cx="36" cy="24" r="2.5" fill="#C9A94E" opacity="0.7"/>
+  <circle cx="36" cy="38" r="2.5" fill="#C9A94E" opacity="0.5"/>
+  <!-- Connections -->
+  <line x1="28" y1="30" x2="36" y2="24" stroke="#C9A94E" stroke-width="1" opacity="0.5"/>
+  <line x1="36" y1="24" x2="44" y2="30" stroke="#C9A94E" stroke-width="1" opacity="0.5"/>
+  <line x1="44" y1="30" x2="36" y2="38" stroke="#E8C674" stroke-width="1" opacity="0.4"/>
+  <line x1="36" y1="38" x2="28" y2="30" stroke="#E8C674" stroke-width="1" opacity="0.4"/>
+  <!-- Chat bubbles -->
+  <path d="M20 46l3-4h6l2 3-2 3h-5z" stroke="#C9A94E" stroke-width="1.2" fill="rgba(201,169,78,0.08)" opacity="0.6"/>
+  <path d="M52 46l-3-4h-6l-2 3 2 3h5z" stroke="#C9A94E" stroke-width="1.2" fill="rgba(201,169,78,0.08)" opacity="0.6"/>
+  <!-- Pulse dots -->
+  <circle cx="36" cy="48" r="1.5" fill="#E8C674" opacity="0.4">
+    <animate attributeName="opacity" values="0.4;1;0.4" dur="2s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="30" cy="48" r="1.5" fill="#E8C674" opacity="0.3">
+    <animate attributeName="opacity" values="0.3;0.8;0.3" dur="2s" begin="0.3s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="42" cy="48" r="1.5" fill="#E8C674" opacity="0.3">
+    <animate attributeName="opacity" values="0.3;0.8;0.3" dur="2s" begin="0.6s" repeatCount="indefinite"/>
+  </circle>
+</svg>
+        </div>
+        <div class="stat-label"><strong>Real LLM Interviewer</strong><br><span style="color:var(--text-dim);font-size:0.85rem;line-height:1.6;">DeepSeek V4 Flash genera preguntas contextuales basadas en tus respuestas</span></div>
+      </div>
+      <div class="stat-card reveal" style="text-align:center;padding:2.5rem 1.5rem;">
+        <div style="width:72px;height:72px;margin:0 auto 1.2rem auto;display:flex;align-items:center;justify-content:center;">
+          <svg viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:72px;height:72px;">
+  <defs>
+    <linearGradient id="g2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#C9A94E"/>
+      <stop offset="100%" stop-color="#E8C674"/>
+    </linearGradient>
+  </defs>
+  <!-- Progress steps -->
+  <circle cx="16" cy="36" r="8" stroke="url(#g2)" stroke-width="2" fill="rgba(201,169,78,0.08)" opacity="0.7"/>
+  <text x="16" y="40" text-anchor="middle" fill="#C9A94E" font-size="12" font-weight="600" font-family="serif">I</text>
+  <circle cx="36" cy="36" r="8" stroke="url(#g2)" stroke-width="2" fill="rgba(201,169,78,0.08)" opacity="0.7"/>
+  <text x="36" y="40" text-anchor="middle" fill="#C9A94E" font-size="12" font-weight="600" font-family="serif">II</text>
+  <circle cx="56" cy="36" r="8" stroke="url(#g2)" stroke-width="2" fill="rgba(201,169,78,0.08)" opacity="0.7"/>
+  <text x="56" y="40" text-anchor="middle" fill="#C9A94E" font-size="12" font-weight="600" font-family="serif">III</text>
+  <circle cx="36" cy="56" r="8" stroke="url(#g2)" stroke-width="2" fill="rgba(201,169,78,0.08)" opacity="0.7"/>
+  <text x="36" y="60" text-anchor="middle" fill="#C9A94E" font-size="12" font-weight="600" font-family="serif">IV</text>
+  <!-- Connection arrows -->
+  <path d="M24 36l4 0" stroke="#C9A94E" stroke-width="1.5" opacity="0.4" marker-end="url(#arrow)"/>
+  <path d="M44 36l4 0" stroke="#C9A94E" stroke-width="1.5" opacity="0.4"/>
+  <path d="M36 44l0 4" stroke="#E8C674" stroke-width="1.5" opacity="0.4"/>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0l10 5-10 5" fill="#C9A94E" opacity="0.5"/>
+    </marker>
+  </defs>
+  <!-- Pulsing glow on active step -->
+  <circle cx="36" cy="56" r="8" stroke="#E8C674" stroke-width="2" fill="none" opacity="0">
+    <animate attributeName="opacity" values="0;0.5;0" dur="2s" repeatCount="indefinite"/>
+    <animate attributeName="r" values="8;12;8" dur="2s" repeatCount="indefinite"/>
+  </circle>
+  <!-- Clock arc -->
+  <path d="M62 14 A 8 8 0 0 1 66 20" stroke="#C9A94E" stroke-width="1.5" fill="none" opacity="0.4"/>
+  <text x="66" y="14" fill="#C9A94E" font-size="7" opacity="0.5" font-family="mono">~3.5h</text>
+</svg>
+        </div>
+        <div class="stat-label"><strong>4 Fases · ~3.5h</strong><br><span style="color:var(--text-dim);font-size:0.85rem;line-height:1.6;">Desde mapeo de rol hasta conocimiento no escrito — progresión automática</span></div>
+      </div>
+      <div class="stat-card reveal" style="text-align:center;padding:2.5rem 1.5rem;">
+        <div style="width:72px;height:72px;margin:0 auto 1.2rem auto;display:flex;align-items:center;justify-content:center;">
+          <svg viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:72px;height:72px;">
+  <defs>
+    <linearGradient id="g3" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#C9A94E"/>
+      <stop offset="100%" stop-color="#E8C674"/>
+    </linearGradient>
+  </defs>
+  <!-- Database cylinder -->
+  <path d="M20 28c0-3 14-5 16-5s16 2 16 5" stroke="url(#g3)" stroke-width="2" fill="rgba(201,169,78,0.05)" opacity="0.8"/>
+  <ellipse cx="36" cy="28" rx="16" ry="5" stroke="url(#g3)" stroke-width="2" fill="rgba(201,169,78,0.08)" opacity="0.8"/>
+  <path d="M20 28v14c0 3 14 5 16 5s16-2 16-5V28" stroke="url(#g3)" stroke-width="2" fill="rgba(201,169,78,0.03)" opacity="0.7"/>
+  <ellipse cx="36" cy="38" rx="16" ry="5" stroke="url(#g3)" stroke-width="1" fill="none" opacity="0.3"/>
+  <ellipse cx="36" cy="48" rx="16" ry="5" stroke="url(#g3)" stroke-width="1" fill="none" opacity="0.15"/>
+  <ellipse cx="36" cy="34" rx="12" ry="3" stroke="url(#g3)" stroke-width="0.8" fill="none" opacity="0.2"/>
+  <ellipse cx="36" cy="42" rx="12" ry="3" stroke="url(#g3)" stroke-width="0.8" fill="none" opacity="0.15"/>
+  <!-- Indexing lines going in -->
+  <path d="M52 20l4-4m-2 8l6-2" stroke="#C9A94E" stroke-width="1.2" opacity="0.5"/>
+  <path d="M20 20l-4-4m2 8l-6-2" stroke="#C9A94E" stroke-width="1.2" opacity="0.5"/>
+  <!-- Chunk dots -->
+  <circle cx="32" cy="32" r="1.5" fill="#E8C674" opacity="0.6">
+    <animate attributeName="opacity" values="0.2;0.8;0.2" dur="1.5s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="38" cy="36" r="1.5" fill="#E8C674" opacity="0.6">
+    <animate attributeName="opacity" values="0.2;0.8;0.2" dur="1.5s" begin="0.4s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="34" cy="40" r="1.5" fill="#E8C674" opacity="0.6">
+    <animate attributeName="opacity" values="0.2;0.8;0.2" dur="1.5s" begin="0.8s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="40" cy="44" r="1.5" fill="#E8C674" opacity="0.6">
+    <animate attributeName="opacity" values="0.2;0.8;0.2" dur="1.5s" begin="1.2s" repeatCount="indefinite"/>
+  </circle>
+  <!-- Search beam -->
+  <path d="M56 54l-7-7" stroke="#C9A94E" stroke-width="1.5" opacity="0.5"/>
+  <circle cx="48" cy="46" r="4" stroke="#E8C674" stroke-width="1.2" fill="none" opacity="0.4">
+    <animate attributeName="r" values="4;6;4" dur="3s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.4;0.1;0.4" dur="3s" repeatCount="indefinite"/>
+  </circle>
+  <path d="M56 54l-7-7" stroke="#E8C674" stroke-width="1" opacity="0.3"/>
+</svg>
+        </div>
+        <div class="stat-label"><strong>Auto-index a RAG</strong><br><span style="color:var(--text-dim);font-size:0.85rem;line-height:1.6;">Al completar, los items de conocimiento se indexan automáticamente en ChromaDB</span></div>
+      </div>
+    </div>
+    </div>
+
+    <div class="reveal" style="text-align:center; margin-top:2rem;">
+      <a href="/capture" style="display:inline-block; background:linear-gradient(135deg, var(--gold), var(--gold-bright)); color:var(--bg); padding:1rem 3rem; border-radius:10px; font-weight:700; font-size:1.2rem; text-decoration:none; letter-spacing:0.05em; transition:all 0.3s ease; box-shadow:0 4px 30px rgba(201,169,78,0.3);" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 40px rgba(201,169,78,0.4)';" onmouseout="this.style.transform='';this.style.boxShadow='0 4px 30px rgba(201,169,78,0.3)';">Iniciar NUMA Capture →</a>
+      <p style="color:var(--text-dim); font-family:var(--mono); font-size:0.75rem; margin-top:1rem; letter-spacing:0.1em;">No requiere registro · Datos guardados localmente</p>
+    </div>
+  </div>
+</section>
+
+<!-- CITATION -->
+
+<!-- PRICING -->
+<section id="pricing" class="protocols-section">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-eyebrow">05 · Precios</div>
+      <h2 class="section-title">Desbloquea el <em>informe completo</em>.</h2>
+      <p class="section-lead">
+        La entrevista de captura es gratuita. Cuando necesites el informe estructurado — grafo de conocimiento validado, 
+        ontología completa y entregables exportables — elige el plan que mejor se ajuste.
+      </p>
+    </div>
+
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap:1.5rem; margin:3rem 0;">
+      <div class="stat-card reveal" style="text-align:center;">
+        <div style="font-family:var(--serif);font-size:1.8rem;font-weight:600;color:var(--gold);margin-bottom:0.3rem;">Gratis</div>
+        <div style="font-size:0.9rem;color:var(--text-muted);margin-bottom:0.2rem;">Informe Básico</div>
+        <div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:1rem;letter-spacing:0.05em;">1 operario</div>
+        <div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:1.5rem;line-height:1.6;">
+          Resumen de items de conocimiento<br>
+          Diagrama entidad-relación<br>
+          Exportación Markdown
+        </div>
+        <button onclick="buyReport('report_basic')" class="nav-cta" style="border:none;cursor:pointer;font-size:0.9rem;">Gratis</button>
+      </div>
+      <div class="stat-card reveal" style="text-align:center;border-color:var(--gold);">
+        <div style="font-family:var(--serif);font-size:1.8rem;font-weight:600;color:var(--gold);margin-bottom:0.3rem;">19 €</div>
+        <div style="font-size:0.9rem;color:var(--text-muted);margin-bottom:0.2rem;">Informe Pro</div>
+        <div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:1rem;letter-spacing:0.05em;">1 operario</div>
+        <div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:1.5rem;line-height:1.6;">
+          Todo lo del Básico<br>
+          Grafo de conocimiento completo (JSON/GraphML)<br>
+          Juicios calibrados con confianza<br>
+          Índice listo para RAG
+        </div>
+        <button onclick="buyReport('report_pro')" class="nav-cta" style="border:none;cursor:pointer;font-size:0.9rem;">Comprar</button>
+      </div>
+      <div class="stat-card reveal" style="text-align:center;">
+        <div style="font-family:var(--serif);font-size:1.8rem;font-weight:600;color:var(--gold);margin-bottom:0.3rem;">49 €</div>
+        <div style="font-size:0.9rem;color:var(--text-muted);margin-bottom:0.2rem;">Informe Enterprise</div>
+        <div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:1rem;letter-spacing:0.05em;">Hasta 6 operarios</div>
+        <div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:1.5rem;line-height:1.6;">
+          Todo lo del Pro<br>
+          Diseño de ontología a medida<br>
+          Fusión multi-experto<br>
+          Soporte prioritario y onboarding
+        </div>
+        <button onclick="buyReport('report_enterprise')" class="nav-cta" style="border:none;cursor:pointer;font-size:0.9rem;">Comprar</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="citation">
+  <div class="container" style="max-width: 900px;">
+    <div class="reveal">
+      <div class="section-eyebrow">07 · Citar</div>
+      <h2 class="section-title">Cita este <em>trabajo</em>.</h2>
+      <p class="section-lead">
+        Si NUMA contribuye a tu investigación o práctica, cita el artículo fuente.
+      </p>
+    </div>
+
+    <div class="citation-block reveal">
+      <div class="citation-header">
+        <span class="citation-label">BibTeX</span>
+        <button class="copy-btn" onclick="copyCitation(this)">COPIAR</button>
+      </div>
+<pre class="citation-code" id="bibtex"><span class="key">@techreport</span>{<span class="key">boian2026numa</span>,
+  <span class="field">title</span>     = <span class="value">{{NUMA}: Perpetuating Expert Knowledge through
+               {LLM}-Guided Elicitation and Graph-Grounded Retrieval}</span>,
+  <span class="field">author</span>    = <span class="value">{Boian, Cristian}</span>,
+  <span class="field">year</span>      = <span class="value">{2026}</span>,
+  <span class="field">institution</span> = <span class="value">{Investigación Independiente}</span>,
+  <span class="field">note</span>      = <span class="value">{Project Pompiliu · Licencia MIT}</span>,
+  <span class="field">url</span>       = <span class="value">{https://github.com/cristianboian/numa-pompiliu}</span>
+}</pre>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">NUMA</div>
+  <div class="footer-text">Creado por <a href="mailto:cristianboian@gmail.com">Cristian Boian</a> · Investigación Independiente · Licencia MIT</div>
+  <div class="footer-text"><a href="/security">Privacidad &amp; Seguridad</a> · <a href="https://github.com/cristianboian/numa-pompiliu" target="_blank">GitHub</a></div>
+  <div class="footer-text" style="font-style:italic;font-family:var(--serif);">"Numa Pompiliu — el legislador que dio forma escrita a las tradiciones que heredó."</div>
+  <div class="footer-meta">© 2026 · TODOS LOS PROTOCOLOS ABIERTOS</div>
+</footer>
+
+<script>
+  // Nav scroll effect
+  const nav = document.getElementById('nav');
+  window.addEventListener('scroll', () => {
+    nav.classList.toggle('scrolled', window.scrollY > 50);
+  });
+
+  // Reveal on scroll
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -50px 0px' });
+
+  document.querySelectorAll('.reveal').forEach((el) => observer.observe(el));
+
+  // Copy BibTeX
+  function copyCitation(btn) {
+    const text = document.getElementById('bibtex').innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      const original = btn.textContent;
+      btn.textContent = '✓ COPIADO';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = original;
+        btn.classList.remove('copied');
+      }, 2000);
+    });
+  }
+</script>
+
+
+<!-- Auth + Stripe -->
+<script>
+// Global auth state for nav-cta
+var _numaUser = null;
+
+async function checkAuth() {
+  try {
+    const res = await fetch('/auth/me', { cache: 'no-store' });
+    const data = await res.json();
+    const userInfo = document.getElementById('user-info');
+    if (data.authenticated && userInfo) {
+      _numaUser = data;
+      userInfo.style.display = 'inline';
+      userInfo.innerHTML = data.email + ' | <a href="/auth/logout" style="color:var(--text-dim);text-decoration:none;font-size:0.75rem" onclick="event.preventDefault();numaLogout()">logout</a>';
+    } else { _numaUser = null; }
+  } catch(e) { _numaUser = null; }
+}
+async function numaLogout() {
+  await fetch('/auth/logout', {method:'POST'});
+  location.reload();
+}
+async function buyReport(productKey) {
+  // Requiere un usuario logueado — usamos el "sub" estable de Google como
+  // session_id, que Stripe devuelve via webhook metadata para que
+  // /report/{session_id} le dé acceso a la persona correcta.
+  let me;
+  try {
+    me = await (await fetch('/auth/me')).json();
+  } catch (e) {
+    alert('Error de conexión: ' + e.message);
+    return;
+  }
+  if (!me || !me.authenticated || !me.sub) {
+    window.location.href = '/auth/google/login';
+    return;
+  }
+  const sessionId = me.sub;
+  try {
+    const res = await fetch('/api/stripe/create-checkout-session', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({session_id: sessionId, product_key: productKey})
+    });
+    const data = await res.json();
+    if (data.url) {
+      window.location.href = data.url;
+    } else {
+      alert('Error: ' + (data.detail || 'Could not create checkout session'));
+    }
+  } catch(e) {
+    alert('Error de conexión: ' + e.message);
+  }
+}
+
+// Smart Launch Capture: check auth state before navigating
+document.addEventListener('click', function(e) {
+  var target = e.target.closest('a');
+  if (target && target.classList.contains('nav-cta') && target.getAttribute('href') === '/capture') {
+    e.preventDefault();
+    if (_numaUser) {
+      location.href = '/capture';
+    } else {
+      location.href = '/auth/google/login';
+    }
+  }
+});
+
+checkAuth();
+</script>
+</body>
+</html>

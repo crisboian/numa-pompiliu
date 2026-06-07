@@ -1,0 +1,1394 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>NUMA Capture — Conocimiento Experto Industrial</title>
+<link rel="manifest" href="/static/manifest.json">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230A0E1A'/%3E%3Ctext x='50%25' y='54%25' text-anchor='middle' font-family='Georgia,serif' font-size='34' font-weight='700' fill='%23C9A94E' dominant-baseline='middle'%3EN%3C/text%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230A0E1A'/%3E%3Ctext x='50%25' y='54%25' text-anchor='middle' font-family='Georgia,serif' font-size='34' font-weight='700' fill='%23C9A94E' dominant-baseline='middle'%3EN%3C/text%3E%3C/svg%3E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0A0E1A">
+<style>
+  :root {
+    --bg: #0A0E1A;
+    --bg-elevated: #0F1525;
+    --bg-card: rgba(20, 27, 48, 0.55);
+    --border: rgba(201, 169, 78, 0.18);
+    --border-strong: rgba(201, 169, 78, 0.45);
+    --gold: #C9A94E;
+    --gold-bright: #E8C674;
+    --gold-soft: rgba(201, 169, 78, 0.08);
+    --text: #E8EAF0;
+    --text-muted: #9AA3B8;
+    --text-dim: #6B7488;
+    --serif: 'Cormorant Garamond', 'Playfair Display', Georgia, 'Times New Roman', serif;
+    --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+    --pa: #C9A94E;
+    --pb: #7C3AED;
+    --pc: #059669;
+    --pd: #D97706;
+    --pe: #DC2626;
+    --cat-decision: #C9A94E;
+    --cat-observation: #7C3AED;
+    --cat-tip: #059669;
+    --cat-warning: #DC2626;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.65;
+    font-size: 16px;
+    overflow-x: hidden;
+    background-image:
+      radial-gradient(circle at 15% 10%, rgba(201, 169, 78, 0.06) 0%, transparent 35%),
+      radial-gradient(circle at 85% 80%, rgba(201, 169, 78, 0.04) 0%, transparent 40%);
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+
+  ::selection { background: var(--gold); color: var(--bg); }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Navigation */
+  nav#numa-nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 1000;
+    padding: 1.25rem 2rem;
+    background: rgba(10, 14, 26, 0.75);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: padding 0.3s ease;
+  }
+  nav#numa-nav.scrolled { padding: 0.85rem 2rem; }
+
+  nav#numa-nav .nav-logo {
+    font-family: var(--serif);
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--gold);
+    letter-spacing: 0.15em;
+    text-decoration: none;
+    text-transform: uppercase;
+  }
+  nav#numa-nav .nav-links {
+    display: flex;
+    gap: 2rem;
+    align-items: center;
+  }
+  nav#numa-nav .nav-links a {
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    transition: color 0.25s ease;
+  }
+  nav#numa-nav .nav-links a:hover { color: var(--gold); }
+  nav#numa-nav .nav-cta {
+    background: var(--gold);
+    color: var(--bg) !important;
+    padding: 0.4rem 1rem;
+    border-radius: 6px;
+    font-weight: 600;
+  }
+  nav#numa-nav .nav-cta:hover {
+    background: var(--gold-bright) !important;
+    color: var(--bg) !important;
+  }
+  nav#numa-nav #numa-user-info {
+    font-size: 0.8rem;
+    color: var(--gold);
+    letter-spacing: 0.05em;
+  }
+  nav#numa-nav #numa-user-info a {
+    color: var(--text-dim);
+    text-decoration: none;
+    font-size: 0.75rem;
+    margin-left: 0.5rem;
+  }
+  nav#numa-nav #numa-user-info a:hover { color: var(--gold); }
+
+  /* Main app area */
+  .app {
+    padding-top: 5.5rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding-left: 2rem;
+    padding-right: 2rem;
+    padding-bottom: 4rem;
+    animation: fadeIn 0.6s ease;
+  }
+
+  /* Page header */
+  .page-header {
+    text-align: center;
+    padding: 3rem 0 2rem;
+    animation: fadeUp 0.8s ease;
+  }
+  .page-header h1 {
+    font-family: var(--serif);
+    font-size: clamp(1.8rem, 4vw, 2.8rem);
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 0.5rem;
+  }
+  .page-header h1 em { color: var(--gold); font-style: italic; }
+  .page-header p {
+    color: var(--text-muted);
+    font-family: var(--serif);
+    font-size: 1.1rem;
+    font-style: italic;
+  }
+
+  /* Tab bar */
+  .tabs {
+    display: flex;
+    gap: 0.25rem;
+    margin-bottom: 2rem;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 0.35rem;
+    overflow-x: auto;
+    animation: fadeUp 0.6s ease 0.2s both;
+  }
+  .tab {
+    flex: 1;
+    min-width: 90px;
+    text-align: center;
+    padding: 0.7rem 0.8rem;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    user-select: none;
+    white-space: nowrap;
+  }
+  .tab:hover { color: var(--text-muted); background: var(--gold-soft); }
+  .tab.active {
+    background: var(--gold);
+    color: var(--bg);
+    font-weight: 600;
+  }
+  .tab .tab-num {
+    display: block;
+    font-family: var(--serif);
+    font-size: 0.65rem;
+    font-weight: 400;
+    opacity: 0.6;
+    margin-bottom: 0.15rem;
+  }
+  .tab.active .tab-num { opacity: 0.8; }
+
+  /* Tab screens */
+  .screen { display: none; }
+  .screen.active { display: block; animation: fadeUp 0.4s ease; }
+
+  /* Cards */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    transition: all 0.35s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .card:hover {
+    border-color: var(--border-strong);
+    background: rgba(20, 27, 48, 0.75);
+  }
+  .card:hover::before { opacity: 1; }
+
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .card-header h2 {
+    font-family: var(--serif);
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .card-header p {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+  }
+
+  /* Setup form */
+  .setup-form {
+    max-width: 520px;
+    margin: 0 auto;
+    padding: 2rem 0;
+  }
+  .setup-form h2 {
+    font-family: var(--serif);
+    font-size: 1.8rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 0.75rem;
+    text-align: center;
+  }
+  .setup-form > p {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    margin-bottom: 2rem;
+    text-align: center;
+    line-height: 1.55;
+    max-width: 440px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .setup-form > p strong { color: var(--gold); font-weight: 500; }
+
+  .fg {
+    margin-bottom: 1.25rem;
+  }
+  .fg label {
+    display: block;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 0.4rem;
+  }
+  .fg input, .fg textarea, .fg select {
+    width: 100%;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.25s ease;
+  }
+  .fg input:focus, .fg textarea:focus, .fg select:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px var(--gold-soft);
+  }
+  .fg input::placeholder, .fg textarea::placeholder {
+    color: var(--text-dim);
+    opacity: 0.6;
+  }
+
+  /* Buttons */
+  .btn-p {
+    display: inline-block;
+    background: var(--gold);
+    color: var(--bg);
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 600;
+    padding: 0.8rem 1.8rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+  }
+  .btn-p:hover {
+    background: var(--gold-bright);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px -8px rgba(201, 169, 78, 0.3);
+  }
+  .btn-p-sm {
+    padding: 0.5rem 1.2rem;
+    font-size: 0.75rem;
+  }
+
+  .btn-s {
+    display: inline-block;
+    background: transparent;
+    color: var(--text-muted);
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.5rem 1.2rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+  }
+  .btn-s:hover {
+    border-color: var(--border-strong);
+    color: var(--gold);
+    background: var(--gold-soft);
+  }
+
+  .btn-group {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 1.5rem;
+  }
+
+  /* Phase bar */
+  .phase-bar {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .phase-step {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.4rem 0.8rem;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    transition: all 0.3s ease;
+    cursor: default;
+  }
+  .phase-step.active {
+    border-color: var(--gold);
+    color: var(--gold);
+    background: var(--gold-soft);
+  }
+  .phase-step.done {
+    border-color: var(--border-strong);
+    color: var(--text-muted);
+    opacity: 0.6;
+  }
+  .phase-step .pn {
+    font-family: var(--serif);
+    font-weight: 700;
+    font-size: 0.85rem;
+    font-style: italic;
+  }
+  .phase-step .pc {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  /* Chat */
+  .chat-container {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  .chat-msgs {
+    height: 400px;
+    overflow-y: auto;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .chat-msgs::-webkit-scrollbar {
+    width: 6px;
+  }
+  .chat-msgs::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .chat-msgs::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 3px;
+  }
+
+  .msg {
+    max-width: 80%;
+    padding: 0.85rem 1.1rem;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    line-height: 1.55;
+    animation: fadeUp 0.3s ease;
+  }
+  .msg.assistant {
+    align-self: flex-start;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-bottom-left-radius: 4px;
+  }
+  .msg.user {
+    align-self: flex-end;
+    background: var(--gold-soft);
+    border: 1px solid rgba(201, 169, 78, 0.25);
+    color: var(--text);
+    border-bottom-right-radius: 4px;
+  }
+  .msg.assistant.typing {
+    animation: pulse 1.5s ease infinite;
+  }
+
+  .chat-input {
+    display: flex;
+    gap: 0.5rem;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--border);
+    background: var(--bg-elevated);
+  }
+  .chat-input textarea {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.65rem 1rem;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 0.9rem;
+    outline: none;
+    resize: none;
+    transition: border-color 0.25s ease;
+    min-height: 42px;
+    max-height: 120px;
+  }
+  .chat-input textarea:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px var(--gold-soft);
+  }
+  .chat-input button {
+    background: var(--gold);
+    color: var(--bg);
+    border: none;
+    border-radius: 8px;
+    padding: 0.65rem 1.4rem;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    white-space: nowrap;
+  }
+  .chat-input button:hover {
+    background: var(--gold-bright);
+  }
+  .chat-input button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  /* Completion screen */
+  .completion {
+    text-align: center;
+    padding: 3rem 1rem;
+  }
+  .completion-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 1.5rem;
+    border: 2px solid var(--gold);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--serif);
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--gold);
+    font-style: italic;
+  }
+  .completion h2 {
+    font-family: var(--serif);
+    font-size: 2rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 0.75rem;
+  }
+  .completion p {
+    color: var(--text-muted);
+    font-size: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .stats {
+    display: flex;
+    gap: 1.5rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 2rem;
+  }
+  .stat {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.5rem 2rem;
+    min-width: 120px;
+  }
+  .stat .num {
+    font-family: var(--serif);
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--gold);
+    line-height: 1;
+    margin-bottom: 0.3rem;
+  }
+  .stat .label {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  /* Shadow log */
+  .shadow-stats {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+  }
+  .shadow-stat-tag {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.35rem 0.75rem;
+    letter-spacing: 0.05em;
+  }
+  .shadow-stat-tag strong {
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+
+  .shadow-item {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 0.75rem;
+    transition: all 0.25s ease;
+    border-left: 3px solid var(--gold);
+  }
+  .shadow-item:hover {
+    border-color: var(--border-strong);
+  }
+  .shadow-item .shadow-meta {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    margin-bottom: 0.4rem;
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .shadow-item .shadow-meta .shadow-cat {
+    font-weight: 600;
+    color: var(--gold);
+  }
+  .shadow-item.shadow-decision { border-left-color: var(--cat-decision); }
+  .shadow-item.shadow-observation { border-left-color: var(--cat-observation); }
+  .shadow-item.shadow-tip { border-left-color: var(--cat-tip); }
+  .shadow-item.shadow-warning { border-left-color: var(--cat-warning); }
+
+  .shadow-item .shadow-ctx {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-top: 0.3rem;
+  }
+  .shadow-item .shadow-tags {
+    display: flex;
+    gap: 0.4rem;
+    margin-top: 0.5rem;
+    flex-wrap: wrap;
+  }
+  .shadow-item .shadow-tags span {
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    color: var(--text-dim);
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.15rem 0.5rem;
+    letter-spacing: 0.05em;
+  }
+
+  /* Modal */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    background: rgba(10, 14, 26, 0.7);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+  .modal-overlay.active { display: flex; }
+
+  .modal {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-strong);
+    border-radius: 16px;
+    padding: 2rem;
+    max-width: 520px;
+    width: 100%;
+    animation: slideDown 0.3s ease;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .modal h3 {
+    font-family: var(--serif);
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 0.4rem;
+  }
+  .modal > p {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .cat-select, .tag-select {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+  }
+  .cat-btn {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 0.4rem 0.9rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-dim);
+    background: transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .cat-btn:hover {
+    border-color: var(--border-strong);
+    color: var(--text-muted);
+  }
+  .cat-btn.active {
+    background: var(--gold);
+    color: var(--bg);
+    border-color: var(--gold);
+    font-weight: 600;
+  }
+
+  .modal textarea, .modal input[type="text"] {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 0.9rem;
+    outline: none;
+    resize: vertical;
+    min-height: 80px;
+    transition: border-color 0.25s ease;
+    margin-bottom: 1rem;
+  }
+  .modal textarea:focus, .modal input:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px var(--gold-soft);
+  }
+
+  .modal-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+  }
+
+  /* Graph tab */
+  .graph-view-toggle {
+    display: flex;
+    gap: 0.25rem;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.2rem;
+  }
+  .graph-view-btn {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.35rem 0.75rem;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .graph-view-btn.active {
+    background: var(--gold);
+    color: var(--bg);
+    font-weight: 600;
+  }
+
+  .graph-intro {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--text-dim);
+    font-size: 0.9rem;
+  }
+  .graph-viz-container {
+    min-height: 400px;
+    position: relative;
+    background: var(--bg-elevated);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .graph-tooltip {
+    position: absolute;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    font-size: 0.8rem;
+    pointer-events: none;
+    z-index: 100;
+    max-width: 280px;
+  }
+  .graph-legend {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    padding: 1rem;
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.05em;
+  }
+
+  /* RAG */
+  .rag-search {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  .rag-search input {
+    flex: 1;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.25s ease;
+  }
+  .rag-search input:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px var(--gold-soft);
+  }
+
+  .rag-result-item {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 0.75rem;
+    transition: all 0.25s ease;
+  }
+  .rag-result-item:hover {
+    border-color: var(--border-strong);
+  }
+  .rag-result-item .rag-score {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--gold);
+    margin-bottom: 0.3rem;
+  }
+  .rag-result-item .rag-text {
+    font-size: 0.9rem;
+    line-height: 1.55;
+    color: var(--text);
+  }
+  .rag-result-item .rag-source {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    margin-top: 0.4rem;
+    letter-spacing: 0.05em;
+  }
+  .rag-status {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    text-align: center;
+    margin-top: 0.75rem;
+  }
+
+  /* Comparativa */
+  .comparativa-stats {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .comp-stat {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.8rem 1.2rem;
+    text-align: center;
+    min-width: 100px;
+    flex: 1;
+  }
+  .comp-stat .comp-num {
+    font-family: var(--serif);
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--gold);
+    line-height: 1;
+  }
+  .comp-stat .comp-label {
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-top: 0.3rem;
+  }
+
+  .domain-section {
+    margin-bottom: 2rem;
+  }
+  .domain-section h3 {
+    font-family: var(--serif);
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .expert-compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
+  .expert-col {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+  }
+  .expert-col .expert-name {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--gold);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.4rem;
+  }
+  .expert-col p {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  /* FAB — Industrial medallion */
+  .shadow-fab {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    z-index: 500;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #1A1F35, #0A0E1A 80%);
+    color: var(--gold);
+    border: 2px solid var(--gold);
+    font-family: var(--serif);
+    font-size: 1.7rem;
+    font-weight: 700;
+    font-style: italic;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-shadow: 0 0 12px rgba(201, 169, 78, 0.4);
+    box-shadow:
+      0 0 0 4px rgba(201, 169, 78, 0.15),
+      0 0 0 1px rgba(201, 169, 78, 0.5) inset,
+      0 8px 32px rgba(0, 0, 0, 0.5),
+      0 0 24px rgba(201, 169, 78, 0.15);
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    animation: fabPulse 3s ease-in-out infinite;
+  }
+  .shadow-fab:hover {
+    transform: scale(1.12);
+    color: var(--gold-bright);
+    border-color: var(--gold-bright);
+    box-shadow:
+      0 0 0 6px rgba(201, 169, 78, 0.2),
+      0 0 0 1px rgba(201, 169, 78, 0.7) inset,
+      0 12px 40px rgba(0, 0, 0, 0.5),
+      0 0 40px rgba(201, 169, 78, 0.25);
+    animation: none;
+  }
+  @keyframes fabPulse {
+    0%, 100% { box-shadow: 0 0 0 4px rgba(201, 169, 78, 0.15), 0 0 0 1px rgba(201, 169, 78, 0.5) inset, 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 24px rgba(201, 169, 78, 0.15); }
+    50% { box-shadow: 0 0 0 4px rgba(201, 169, 78, 0.15), 0 0 0 2px rgba(201, 169, 78, 0.5) inset, 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 36px rgba(201, 169, 78, 0.25); }
+  }
+
+  /* History */
+  .history-item {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 0.75rem;
+    transition: all 0.25s ease;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+  .history-item:hover {
+    border-color: var(--border-strong);
+  }
+  .history-item .h-name {
+    font-family: var(--serif);
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .history-item .h-meta {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+  }
+  .history-item .h-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  /* Continue session banner */
+  .continue-banner {
+    display: none;
+    margin-top: 1rem;
+    padding: 1rem 1.5rem;
+    background: var(--gold-soft);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    text-align: center;
+  }
+  .continue-banner.active { display: block; }
+  .continue-banner p { font-size: 0.85rem; color: var(--text-muted); }
+  .continue-banner .strong { color: var(--gold); }
+  .continue-banner .btn-row {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    margin-top: 0.75rem;
+  }
+
+  /* Global filter select */
+  .filter-select {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    outline: none;
+    cursor: pointer;
+    letter-spacing: 0.05em;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    nav#numa-nav { padding: 1rem; }
+    nav#numa-nav .nav-links { gap: 0.75rem; }
+    nav#numa-nav .nav-links a:not(.nav-cta) { display: none; }
+    nav#numa-nav #numa-user-info { display: none !important; }
+    .app { padding-top: 4.5rem; padding-left: 1rem; padding-right: 1rem; }
+    .tabs { gap: 0.15rem; padding: 0.25rem; }
+    .tab { min-width: 60px; font-size: 0.65rem; padding: 0.5rem; }
+    .modal { padding: 1.5rem; }
+    .expert-compare { grid-template-columns: 1fr; }
+    .chat-msgs { height: 300px; }
+    .msg { max-width: 90%; }
+    .stats { gap: 0.75rem; }
+    .stat { padding: 1rem; }
+    .shadow-fab { bottom: 1.5rem; right: 1.5rem; width: 54px; height: 54px; font-size: 1.4rem; }
+  }
+</style>
+</head>
+<body>
+
+<nav id="numa-nav">
+  <a href="/" class="nav-logo">NUMA POMPILIU</a>
+  <div class="nav-links">
+    <a href="https://numapompiliu.es">Inicio</a>
+    <a href="/capture">Capture</a>
+    <a href="/#pricing">Precios</a>
+    <a href="/#citation">Paper</a>
+    <span id="numa-user-info" style="display:none;"></span>
+    <a href="https://numapompiliu.com/capture" class="nav-cta">Launch Capture →</a>
+  </div>
+</nav>
+
+<div class="app" id="app">
+  <!-- TABS -->
+  <div class="tabs">
+    <div class="tab active" data-tab="interview" onclick="switchTab('interview')"><span class="tab-num">I</span> Entrevista</div>
+    <div class="tab" data-tab="shadow" onclick="switchTab('shadow')"><span class="tab-num">II</span> Numas</div>
+    <div class="tab" data-tab="graph" onclick="switchTab('graph')"><span class="tab-num">III</span> Grafo</div>
+    <div class="tab" data-tab="history" onclick="switchTab('history')"><span class="tab-num">IV</span> Historial</div>
+    <div class="tab" data-tab="rag" onclick="switchTab('rag')"><span class="tab-num">V</span> RAG</div>
+    <div class="tab" data-tab="comparativa" onclick="switchTab('comparativa')"><span class="tab-num">VI</span> Comparativa</div>
+  </div>
+
+  <!-- TAB I: INTERVIEW -->
+  <div class="screen active" id="screen-interview">
+    <div class="screen active" id="screen-setup">
+      <div class="setup-form">
+        <h2>Captura tu Conocimiento Experto</h2>
+        <p><strong>5 fases</strong> entrevista guiada (~4h total) para capturar conocimiento experto. Includes <strong>Fase E: Conocimiento Negativo</strong> — mistakes that save lives.</p>
+        <div class="fg">
+          <label>Nombre del experto</label>
+          <input type="text" id="input-name" placeholder="Ej: Cristian Boian">
+        </div>
+        <div class="fg">
+          <label>Rol / Puesto</label>
+          <input type="text" id="input-role" placeholder="Ej: Operador Senior Ensacado">
+        </div>
+        <div class="fg">
+          <label>Dominio / Área</label>
+          <input type="text" id="input-domain" placeholder="Ej: Seguridad Industrial">
+        </div>
+        <div class="fg">
+          <label>Organización</label>
+          <input type="text" id="input-org" placeholder="Ej: PROPAMSA">
+        </div>
+        <div class="btn-group">
+          <button class="btn-p" onclick="startSession()">Comenzar Entrevista →</button>
+        </div>
+        <div id="continue-session" class="continue-banner">
+          <p>Tienes una <span class="strong">sesión activa</span> en curso</p>
+          <p id="continue-info" style="font-size:0.8rem;color:var(--text-dim);margin-top:0.3rem"></p>
+          <div class="btn-row">
+            <button class="btn-p btn-p-sm" onclick="continueSession()">Continuar Entrevista</button>
+            <button class="btn-s" onclick="clearStoredSession()">Empezar Nueva</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="screen" id="screen-interview-active">
+      <div class="phase-bar" id="phase-bar">
+        <div class="phase-step" data-phase="A"><span class="pn">A</span> Role<span class="pc" style="background:var(--pa)"></span></div>
+        <div class="phase-step" data-phase="B"><span class="pn">B</span> Incidents<span class="pc" style="background:var(--pb)"></span></div>
+        <div class="phase-step" data-phase="C"><span class="pn">C</span> Verify<span class="pc" style="background:var(--pc)"></span></div>
+        <div class="phase-step" data-phase="D"><span class="pn">D</span> Tacit<span class="pc" style="background:var(--pd)"></span></div>
+        <div class="phase-step" data-phase="E" style="border:1px solid transparent"><span class="pn">E</span> Negative<span class="pc" style="background:var(--pe)"></span></div>
+      </div>
+      <div class="chat-container">
+        <div class="chat-msgs" id="chat-msgs"></div>
+        <div class="chat-input" id="chat-input-area">
+          <textarea id="chat-input" placeholder="Escribe tu respuesta aquí..." rows="1" oninput="autoResize(this)" onkeydown="handleKey(event)"></textarea>
+          <button id="chat-send" onclick="sendAnswer()">Enviar</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="screen" id="screen-completion">
+      <div class="completion">
+        <div class="completion-icon">N</div>
+        <h2>Entrevista Completada</h2>
+        <p>Conocimiento capturado en 5 fases. Indexado al sistema NUMA.</p>
+        <div class="stats">
+          <div class="stat"><div class="num" id="stat-phases">5</div><div class="label">Fases</div></div>
+          <div class="stat"><div class="num" id="stat-items">0</div><div class="label">Items de Conocimiento</div></div>
+          <div class="stat"><div class="num" id="stat-duration">~4h</div><div class="label">Duración</div></div>
+        </div>
+        <div class="btn-group">
+          <button class="btn-s" onclick="exportSession()">Exportar JSON</button>
+          <button class="btn-p btn-p-sm" onclick="resetSession()">Nueva Entrevista</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB II: SHADOW LOG -->
+  <div class="screen" id="screen-shadow">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Numas</h2>
+          <p style="color:var(--text-muted);font-size:0.85rem;margin-top:0.15rem">Captura conocimiento, no repitas errores — anticipa decisiones.</p>
+        </div>
+        <button class="btn-p btn-p-sm" onclick="openShadowModal()">+ Nueva</button>
+      </div>
+      <div class="shadow-stats" id="shadow-stats"></div>
+      <div id="shadow-list" style="max-height:500px;overflow-y:auto"></div>
+    </div>
+  </div>
+
+  <!-- TAB III: INDUSTRIAL GRAPH -->
+  <div class="screen" id="screen-graph">
+    <div class="card">
+      <div class="card-header">
+        <h2>Grafo de Conocimiento Industrial</h2>
+      </div>
+      <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1rem">Entidades y relaciones del dominio industrial capturado</p>
+      <div class="graph-viz-container" id="graph-viz-container">
+        <div id="graph-empty" style="text-align:center;padding:3rem 1rem">
+          <div style="font-family:var(--serif);font-size:2rem;font-weight:700;color:var(--gold);font-style:italic;margin-bottom:1rem;opacity:0.6">G</div>
+          <p style="color:var(--text-dim);margin-bottom:1.5rem">No hay entidades todavía. Empieza una entrevista o añade entidades desde Numas.</p>
+          <button class="btn-p btn-p-sm" onclick="renderForceGraph()">Cargar Grafo</button>
+        </div>
+        <svg id="graph-svg" width="100%" height="500" style="display:none"></svg>
+        <div class="graph-tooltip" id="graph-tooltip" style="display:none"></div>
+        <div class="graph-legend" id="graph-legend" style="display:none"></div>
+      </div>
+      <div class="btn-group" style="margin-top:1rem;justify-content:flex-start">
+        <button class="btn-s" onclick="renderForceGraph()">Actualizar</button>
+        <button class="btn-s" onclick="addQuickEntity()">+ Añadir Entidad</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB IV: HISTORY -->
+  <div class="screen" id="screen-history">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Historial de Entrevistas</h2>
+          <p>Sesiones completadas con items de conocimiento extraídos</p>
+        </div>
+        <div class="btn-group" style="margin:0">
+          <button class="btn-s" onclick="exportAllSessions()">Exportar Todo</button>
+          <button class="btn-s" onclick="loadHistory()">Reload</button>
+        </div>
+      </div>
+      <div id="history-list"></div>
+    </div>
+  </div>
+
+  <!-- TAB V: RAG SEARCH -->
+  <div class="screen" id="screen-rag">
+    <div class="card">
+      <div class="card-header">
+        <h2>Búsqueda Semántica (RAG)</h2>
+      </div>
+      <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1rem">
+        Busca sobre <strong id="rag-count">31</strong> items de conocimiento indexados con ChromaDB + all-MiniLM-L6-v2
+      </p>
+      <div class="rag-search">
+        <input type="text" id="rag-query" placeholder="Ej: atascos tolva, seguridad eléctrica, dosificación..."
+               onkeydown="if(event.key==='Enter')searchRAG()">
+        <button class="btn-p btn-p-sm" onclick="searchRAG()">Buscar</button>
+      </div>
+      <div id="rag-results" style="max-height:500px;overflow-y:auto"></div>
+      <div class="rag-status" id="rag-status"></div>
+    </div>
+  </div>
+
+  <!-- TAB VI: COMPARATIVA -->
+  <div class="screen" id="screen-comparativa">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2>Comparativa Multi-Experto</h2>
+          <p>Compara conocimiento capturado entre expertos, agrupado por dominio</p>
+        </div>
+        <div class="btn-group" style="margin:0">
+          <select id="comparativa-domain-filter" class="filter-select" onchange="loadComparativa()">
+            <option value="">Todos los dominios</option>
+          </select>
+          <button class="btn-s" onclick="loadComparativa()">Reload</button>
+        </div>
+      </div>
+      <div class="comparativa-stats" id="comparativa-stats"></div>
+      <div id="comparativa-results" style="max-height:600px;overflow-y:auto">
+        <p style="color:var(--text-dim);font-size:0.85rem;text-align:center;padding:2rem">Cargando comparativa...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SHADOW MODAL -->
+  <div class="modal-overlay" id="modal-shadow">
+    <div class="modal">
+      <h3>Captura Rápida</h3>
+      <p>Registra una decisión, observación o advertencia en segundos.</p>
+      <div class="cat-select" id="shadow-cats">
+        <span class="cat-btn active" data-cat="decision" onclick="selectCat(this)">Decisión</span>
+        <span class="cat-btn" data-cat="observation" onclick="selectCat(this)">Observación</span>
+        <span class="cat-btn" data-cat="tip" onclick="selectCat(this)">Consejo</span>
+        <span class="cat-btn" data-cat="warning" onclick="selectCat(this)">Alerta</span>
+      </div>
+      <textarea id="shadow-content" placeholder="¿Qué pasó? Describe la decisión o situación en 1-3 frases..." style="min-height:100px"></textarea>
+      <div class="fg">
+        <label>Contexto (opcional — ej: turno tarde, línea 3)</label>
+        <input type="text" id="shadow-context" placeholder="turno mañana, máquina X">
+      </div>
+      <div class="tag-select">
+        <span class="cat-btn" data-tag="safety" onclick="selectTag(this)">seguridad</span>
+        <span class="cat-btn" data-tag="maintenance" onclick="selectTag(this)">mantenimiento</span>
+        <span class="cat-btn" data-tag="quality" onclick="selectTag(this)">calidad</span>
+        <span class="cat-btn" data-tag="emergency" onclick="selectTag(this)">emergencia</span>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-s" onclick="closeShadowModal()">Cancelar</button>
+        <button class="btn-p btn-p-sm" onclick="saveShadow()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADD ENTITY MODAL -->
+  <div class="modal-overlay" id="modal-entity">
+    <div class="modal">
+      <h3>Añadir Entidad</h3>
+      <p>Añade una entidad al grafo de conocimiento industrial.</p>
+      <div class="fg">
+        <label>Type</label>
+        <select id="entity-type" class="filter-select" style="width:100%">
+          <option value="machine">Máquina</option>
+          <option value="procedure">Procedimiento</option>
+          <option value="incident">Incidente</option>
+          <option value="safety_rule">Norma Seguridad</option>
+          <option value="regulation">Regulación</option>
+          <option value="role">Rol</option>
+          <option value="material">Material</option>
+          <option value="tool">Herramienta</option>
+          <option value="alarm">Alarma</option>
+          <option value="area">Área</option>
+        </select>
+      </div>
+      <div class="fg"><label>Nombre</label><input type="text" id="entity-name" placeholder="Ej: Ensacadora rotativa"></div>
+      <div class="fg"><label>Descripción</label><textarea id="entity-desc" style="min-height:60px" placeholder="Descripción breve..."></textarea></div>
+      <div class="modal-actions">
+        <button class="btn-s" onclick="closeEntityModal()">Cancelar</button>
+        <button class="btn-p btn-p-sm" onclick="saveEntity()">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SHADOW FAB -->
+<button class="shadow-fab" onclick="openShadowModal()">N</button>
+
+<script>
+  // Nav scroll effect
+  (function () {
+    var numaNav = document.getElementById('numa-nav');
+    if (numaNav) {
+      window.addEventListener('scroll', function () {
+        numaNav.classList.toggle('scrolled', window.scrollY > 50);
+      });
+    }
+  })();
+
+  // Global auth state
+  var _numaUser = null;
+
+  // Auth check
+  async function checkAuth() {
+    try {
+      var res = await fetch('/auth/me', { cache: 'no-store' });
+      var data = await res.json();
+      var userInfo = document.getElementById('numa-user-info');
+      if (data.authenticated && userInfo) {
+        _numaUser = data;
+        userInfo.style.display = 'inline';
+        userInfo.innerHTML = data.email + ' | <a href="/auth/logout" onclick="event.preventDefault();numaLogout()">logout</a>';
+      } else {
+        _numaUser = null;
+      }
+    } catch (e) { _numaUser = null; }
+  }
+  async function numaLogout() {
+    await fetch('/auth/logout', { method: 'POST' });
+    _numaUser = null;
+    location.href = '/';
+  }
+  checkAuth();
+
+  // Smart Launch Capture: use auth state to decide destination
+  document.addEventListener('click', function(e) {
+    var target = e.target.closest('a');
+    if (target && target.classList.contains('nav-cta') && target.getAttribute('href') === '/capture') {
+      e.preventDefault();
+      if (_numaUser) {
+        location.href = '/capture';
+      } else {
+        location.href = '/auth/google/login';
+      }
+    }
+  });
+</script>
+
+<script src="/static/d3.v7.min.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

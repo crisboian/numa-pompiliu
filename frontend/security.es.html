@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NUMA — Seguridad y Privacidad</title>
+<meta name="description" content="NUMA: Privacidad, cumplimiento GDPR y prácticas de seguridad para la captura de conocimiento experto.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230A0E1A'/%3E%3Ctext x='50%25' y='54%25' text-anchor='middle' font-family='Georgia,serif' font-size='34' font-weight='700' fill='%23C9A94E' dominant-baseline='middle'%3EN%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #0A0E1A;
+    --bg-elevated: #0F1525;
+    --bg-card: rgba(20, 27, 48, 0.55);
+    --border: rgba(201, 169, 78, 0.18);
+    --border-strong: rgba(201, 169, 78, 0.45);
+    --gold: #C9A94E;
+    --gold-bright: #E8C674;
+    --gold-soft: rgba(201, 169, 78, 0.08);
+    --text: #E8EAF0;
+    --text-muted: #9AA3B8;
+    --text-dim: #6B7488;
+    --serif: 'Cormorant Garamond', 'Playfair Display', Georgia, 'Times New Roman', serif;
+    --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.65;
+    font-size: 16px;
+    overflow-x: hidden;
+    background-image:
+      radial-gradient(circle at 15% 10%, rgba(201, 169, 78, 0.06) 0%, transparent 35%),
+      radial-gradient(circle at 85% 80%, rgba(201, 169, 78, 0.04) 0%, transparent 40%);
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+  ::selection { background: var(--gold); color: var(--bg); }
+  a { color: var(--gold); text-decoration: none; }
+  a:hover { color: var(--gold-bright); }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    padding: 1.25rem 2rem;
+    background: rgba(10, 14, 26, 0.75);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .nav-logo {
+    font-family: var(--serif); font-size: 1.4rem; font-weight: 700;
+    color: var(--gold); letter-spacing: 0.15em;
+  }
+  .nav-back {
+    color: var(--text-muted); font-size: 0.85rem; letter-spacing: 0.08em;
+    text-transform: uppercase; transition: color 0.25s;
+  }
+  .nav-back:hover { color: var(--gold); }
+
+  .container {
+    max-width: 800px; margin: 0 auto; padding: 0 2rem;
+  }
+
+  header {
+    min-height: 40vh; display: flex; flex-direction: column;
+    justify-content: center; align-items: center; text-align: center;
+    padding: 8rem 2rem 3rem;
+  }
+  header h1 {
+    font-family: var(--serif);
+    font-size: clamp(2.5rem, 6vw, 4rem);
+    font-weight: 700;
+    background: linear-gradient(180deg, var(--gold-bright) 0%, var(--gold) 60%, #8B7530 100%);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 1rem;
+    animation: fadeUp 0.9s ease 0.2s forwards;
+    opacity: 0;
+  }
+  header p {
+    font-family: var(--serif); font-size: 1.1rem; font-style: italic;
+    color: var(--text-muted); max-width: 600px;
+    animation: fadeUp 0.9s ease 0.4s forwards; opacity: 0;
+  }
+
+  .section {
+    padding: 3rem 0;
+    animation: fadeUp 0.9s ease 0.3s forwards; opacity: 0;
+  }
+  .section h2 {
+    font-family: var(--serif); font-size: 1.6rem; font-weight: 600;
+    color: var(--gold); margin-bottom: 1.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .section h3 {
+    font-family: var(--serif); font-size: 1.15rem; font-weight: 600;
+    color: var(--gold-bright); margin: 1.5rem 0 0.75rem;
+  }
+  .section p, .section li {
+    color: var(--text-muted); font-size: 0.95rem; margin-bottom: 0.75rem;
+  }
+  .section ul { padding-left: 1.5rem; margin: 0.75rem 0; }
+  .section li { margin-bottom: 0.5rem; }
+  .section strong { color: var(--text); }
+
+  .highlight-box {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--gold);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+  }
+  .highlight-box p { margin-bottom: 0; font-size: 0.95rem; }
+
+  .badge-row {
+    display: flex; flex-wrap: wrap; gap: 1rem; margin: 1.5rem 0;
+  }
+  .badge {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.75rem 1.25rem;
+    font-family: var(--mono); font-size: 0.8rem;
+    color: var(--gold);
+    display: flex; align-items: center; gap: 0.5rem;
+  }
+
+  footer {
+    text-align: center; padding: 3rem 2rem;
+    border-top: 1px solid var(--border); margin-top: 3rem;
+  }
+  .footer-logo {
+    font-family: var(--serif); font-size: 1.2rem; font-weight: 700;
+    color: var(--gold); letter-spacing: 0.15em; margin-bottom: 0.5rem;
+  }
+  .footer-text {
+    font-size: 0.85rem; color: var(--text-dim); line-height: 1.8;
+  }
+  .footer-text a { color: var(--text-muted); border-bottom: 1px dotted var(--border); }
+  .footer-text a:hover { border-bottom-color: var(--gold); color: var(--gold); }
+
+  @media (max-width: 768px) {
+    nav { padding: 1rem; }
+    .container { padding: 0 1.25rem; }
+    header { padding: 6rem 1.25rem 2rem; }
+    .section { padding: 2rem 0; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <span class="nav-logo">NUMA</span>
+  <a href="/" class="nav-back">← Volver</a>
+</nav>
+
+<header>
+  <h1>Seguridad &amp; Privacidad</h1>
+  <p>Cómo NUMA gestiona tus datos — con transparencia, apertura y por diseño.</p>
+</header>
+
+<div class="container">
+
+<div class="section">
+  <h2>Nuestra Filosofía</h2>
+  <div class="highlight-box">
+    <p><strong>Tus datos siguen siendo tuyos.</strong> NUMA está diseñado para que el conocimiento capturado viva en <strong>tu cuenta de Gmail</strong>, no en nuestros servidores. No almacenamos, explotamos ni monetizamos tu experiencia. El código es abierto — cualquiera puede verificar exactamente qué hace el sistema.</p>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Qué Recogemos y Por Qué</h2>
+
+  <h3>Cuenta de Google (OAuth)</h3>
+  <p>Al iniciar sesión con Google, recibimos tu <strong>correo electrónico</strong> y <strong>nombre</strong>. Se usan exclusivamente para:</p>
+  <ul>
+    <li>Crear y mantener tu sesión</li>
+    <li>Guardar el conocimiento capturado como borradores de Gmail en tu propia cuenta</li>
+    <li>Identificar la propiedad de las compras (para acceso a informes)</li>
+  </ul>
+  <p>Solicitamos los permisos <code>gmail.compose</code> y <code>gmail.labels</code> para guardar los items de conocimiento como borradores y organizarlos bajo una etiqueta NUMA en tu bandeja de entrada. No podemos leer tus otros correos.</p>
+
+  <h3>Información de Pago (Stripe)</h3>
+  <p>Todos los pagos los gestiona <strong>Stripe</strong> íntegramente. Nosotros nunca vemos, almacenamos ni procesamos los datos de tu tarjeta. Se aplican directamente la seguridad y el cumplimiento de Stripe (PCI DSS Nivel 1).</p>
+
+  <h3>Conocimiento Capturado</h3>
+  <p>Las transcripciones de entrevistas, entidades, relaciones y elementos de conocimiento se almacenan como <strong>borradores de Gmail</strong> en tu cuenta. Los servidores de NUMA nunca guardan una copia persistente — solo almacenamos datos temporalmente durante la sesión activa por rendimiento.</p>
+
+  <h3>Qué NO Recogemos</h3>
+  <ul>
+    <li>❌ Direcciones IP (no registramos origen de las peticiones)</li>
+    <li>❌ Huellas del navegador ni cookies más allá de la cookie de sesión esencial</li>
+    <li>❌ Analíticas, píxeles de seguimiento ni telemetría</li>
+    <li>❌ Compartición de datos con terceros de ningún tipo</li>
+  </ul>
+</div>
+
+<div class="section">
+  <h2>Cumplimiento GDPR</h2>
+
+  <p>NUMA se compromete con el Reglamento General de Protección de Datos (UE 2016/679). Como proyecto de código abierto operado por un investigador independiente, seguimos los principios del reglamento de buena fe:</p>
+
+  <ul>
+    <li><strong>Derecho de Acceso</strong> — Tu conocimiento está almacenado en tus propios borradores de Gmail. Puedes leer cada elemento en cualquier momento.</li>
+    <li><strong>Derecho de Supresión</strong> — Elimina tus borradores de Gmail y tu etiqueta NUMA. Contáctanos para eliminar tu referencia de nuestros registros de compra.</li>
+    <li><strong>Portabilidad de Datos</strong> — Exporta tu conocimiento como Markdown, JSON o GraphML desde la interfaz de captura.</li>
+    <li><strong>Minimización de Datos</strong> — Recogemos solo lo estrictamente necesario: tu correo para la autenticación y el conocimiento que decides compartir.</li>
+    <li><strong>Limitación de Finalidad</strong> — Los datos se usan solo para la captura y recuperación de conocimiento que solicitas explícitamente.</li>
+  </ul>
+
+  <p>Para cualquier solicitud GDPR, contacta: <a href="mailto:cristianboian@gmail.com">cristianboian@gmail.com</a></p>
+</div>
+
+<div class="section">
+  <h2>Medidas de Seguridad</h2>
+
+  <div class="badge-row">
+    <span class="badge">🔒 HTTPS / TLS 1.3</span>
+    <span class="badge">🔑 OAuth 2.0 / OpenID</span>
+    <span class="badge">📜 Cabeceras CSP</span>
+    <span class="badge">🛡️ HSTS Preload</span>
+    <span class="badge">📦 Código Abierto</span>
+  </div>
+
+  <ul>
+    <li><strong>Seguridad de transporte:</strong> Todo el tráfico se sirve mediante HTTPS con TLS 1.3. HSTS está activado con precarga.</li>
+    <li><strong>Autenticación:</strong> Google OAuth 2.0 con OpenID Connect. Las sesiones se gestionan mediante cookies firmadas HTTP-only.</li>
+    <li><strong>Política de Seguridad de Contenido:</strong> Cabeceras CSP estrictas limitan los orígenes de scripts y recursos, mitigando ataques XSS.</li>
+    <li><strong>Sin persistencia de datos en el servidor:</strong> Los items de conocimiento se almacenan en tus borradores de Gmail. El almacenamiento en servidor se limita a estado de sesión temporal y registros de compra (anonimizados).</li>
+    <li><strong>Transparencia del código abierto:</strong> Todo el código de NUMA está disponible bajo licencia MIT. Cualquiera puede auditar, bifurcar o alojar el sistema.</li>
+  </ul>
+</div>
+
+<div class="section">
+  <h2>Términos de Servicio (Resumen)</h2>
+
+  <ul>
+    <li><strong>NUMA</strong> se proporciona como software de código abierto bajo <strong>licencia MIT</strong> y como servicio alojado en numapompiliu.com / numapompiliu.es.</li>
+    <li>La <strong>entrevista de captura</strong> es gratuita. Los <strong>informes</strong> se venden por informe mediante Stripe — Básico (gratis), Pro (19€), Enterprise (49€).</li>
+    <li>Conservas la propiedad total de todo el conocimiento que capturas. NUMA no reclama propiedad intelectual sobre tu información.</li>
+    <li>El servicio se proporciona <strong>"tal cual"</strong> sin garantía. En ningún caso los autores serán responsables de reclamaciones derivadas del uso del software o servicio.</li>
+    <li>Nos reservamos el derecho de actualizar estos términos. Los cambios sustanciales se comunicarán a través del sitio web.</li>
+  </ul>
+
+  <p style="margin-top:1rem;">Términos completos disponibles en el <a href="https://github.com/cristianboian/numa-pompiliu" target="_blank">repositorio de GitHub</a>.</p>
+</div>
+
+<div class="section">
+  <h2>Contacto y Responsable del Tratamiento</h2>
+  <p>
+    NUMA es un proyecto de investigación independiente creado y operado por <strong>Cristian Boian</strong>.<br>
+    Contacto: <a href="mailto:cristianboian@gmail.com">cristianboian@gmail.com</a>
+  </p>
+  <p style="font-size:0.85rem;color:var(--text-dim);margin-top:1rem;">
+    Última actualización: junio 2026
+  </p>
+</div>
+
+</div>
+
+<footer>
+  <div class="footer-logo">NUMA</div>
+  <div class="footer-text">Creado por <a href="mailto:cristianboian@gmail.com">Cristian Boian</a> · Investigación Independiente · Licencia MIT</div>
+  <div class="footer-text" style="font-style:italic;font-family:var(--serif);">&ldquo;Numa Pompiliu — el legislador que codificó lo que vino antes que él.&rdquo;</div>
+</footer>
+
+</body>
+</html>
