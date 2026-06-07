@@ -8,7 +8,6 @@ import json
 import logging
 import os
 import uuid
-import uuid
 from contextlib import asynccontextmanager
 from datetime import date, datetime, timezone
 from typing import Any
@@ -16,7 +15,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-from fastapi import Depends, FastAPI, HTTPException, UploadFile, File, UploadFile, File
+from fastapi import Depends, FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi import Request
@@ -589,12 +588,159 @@ async def get_chat_history(
     }
 
 
-@app.get("/api/sessions/{sessio
+@app.get("/api/sessions/{session_id}/export")
+async def export_session(
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    session = await get_session_with_data(db, session_id)
+    if not session:
+        raise HTTPException(404, "Session not found")
 
-... [OUTPUT TRUNCATED - 5845 chars omitted out of 55845 total] ...
+    duration_minutes = 0
+    for p in PHASE_ORDER[: PHASE_ORDER.index(Phase(session.current_phase)) + 1]:
+        dur_str = PHASE_DEFINITIONS.get(p.value, {}).get("duration", "0 min")
+        try:
+            duration_minutes += int(dur_str.split()[0])
+        except (ValueError, IndexError):
+            pass
+
+    export = {
+        "protocol": "NUMA Capture v2.0",
+        "session_id": session.id,
+        "expert": {
+            "name": session.expert_name,
+            "role": session.expert_role,
+            "domain": session.domain,
+            "organization": session.organization,
+        },
+        "status": session.status,
+        "phases_completed": session.current_phase,
+        "duration_minutes": duration_minutes,
+        "knowledge_items": [k.to_dict() for k in session.knowledge_items],
+        "conversation": [
+            {
+                "role": m.role,
+                "phase": m.phase,
+                "content": m.content,
+                "created_at": m.created_at.isoformat() if m.created_at else None,
+            }
+            for m in session.messages
+        ],
+        "created_at": session.created_at.isoformat() if session.created_at else None,
+        "completed_at": session.completed_at.isoformat() if session.completed_at else None,
+    }
+    return export
 
 
-    return {"status": "ok", "deleted": report_id}
+@app.get("/api/sessions/{session_id}/progress")
+async def get_progress(
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    session = await get_session_with_data(db, session_id)
+    if not session:
+        raise HTTPException(404, "Session not found")
+
+    phases = []
+    for p in PHASE_ORDER:
+        pv = p.value
+        phase_def = PHASE_DEFINITIONS[pv]
+        phase_msgs = [m for m in session.messages if m.phase == pv]
+        max_q = 1 + len(phase_def["prompts"])
+        answered = len([m for m in phase_msgs if m.role == "user"])
+        completed = (
+            answered >= max_q
+            or PHASE_ORDER.index(p) < PHASE_ORDER.index(Phase(session.current_phase))
+        )
+        phases.append({
+            "phase": pv,
+            "name": phase_def["name"],
+            "total_questions": max_q,
+            "answered": answered,
+            "complete": completed,
+            "is_active": pv == session.current_phase and session.status == "in_progress",
+        })
+
+    return {"session_id": session.id, "status": session.status, "phases": phases}
+
+
+# ─── Shadow endpoints ──────────────────────────────────────────────────────
+
+
+@app.post("/api/shadow", status_code=201)
+async def capture_shadow(
+    req: ShadowCaptureRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    entry = ShadowEntry(
+        session_id=req.session_id,
+        expert_name=req.expert_name,
+        content=req.content,
+        category=req.category,
+        context=req.context,
+        tags=req.tags,
+        source="quick",
+    )
+    db.add(entry)
+    await db.commit()
+    await db.refresh(entry)
+    logger.info("Shadow entry #%d captured (%s)", entry.id, req.category)
+
+    # Index into ChromaDB for RAG search
+    try:
+        _index_items_to_chroma([{
+            "id": entry.id,
+            "content": f"[Shadow] {req.content}",
+            "category": req.category,
+            "weight": 0.9,
+            "phase": "S",
+        }])
+    except Exception as e:
+        logger.warning("ChromaDB indexing for shadow failed: %s", e)
+
+    return {"status": "ok", "entry": entry.to_dict()}
+
+
+@app.get("/api/shadow")
+async def list_shadow(
+    limit: int = 50,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(ShadowEntry)
+        .order_by(ShadowEntry.created_at.desc())
+        .limit(min(limit, 200))
+    )
+    entries = result.scalars().all()
+    return {"entries": [e.to_dict() for e in entries]}
+
+
+@app.get("/api/shadow/stats")
+async def shadow_stats(
+    db: AsyncSession = Depends(get_db),
+):
+    today = date.today()
+    result = await db.execute(select(ShadowEntry))
+    all_entries = result.scalars().all()
+
+    today_entries = [
+        e for e in all_entries if e.created_at and e.created_at.date() == today
+    ]
+    categories: dict[str, int] = {}
+    for e in all_entries:
+        categories[e.category] = categories.get(e.category, 0) + 1
+    latest = sorted(
+        all_entries, key=lambda e: e.created_at or datetime.min, reverse=True
+    )[:10]
+
+    return {
+        "today": len(today_entries),
+        "total": len(all_entries),
+        "categories": categories,
+        "latest": [e.to_dict() for e in latest],
+    }
+
 
 
 # ─── Reports endpoints (safety/security reports) ──────────────────────────
@@ -607,274 +753,129 @@ async def upload_report(
     db: AsyncSession = Depends(get_db),
 ):
     """Upload a safety report. NUMA does NOT store the file.
-    Extracted text is saved as a Gmail draft in the user's own inbox.
-    NUMA only keeps a lightweight index reference (draft_id + metadata)."""
+    Extracted text is saved as Gmail draft in user's inbox."""
     user_id = user.get("sub", "")
     token_info = user.get("token_info")
     user_email = user.get("email", "")
     if not user_id:
         raise HTTPException(401, "Not authenticated")
-
     ext = os.path.splitext(file.filename or "report")[1].lower()
     if ext not in (".pdf", ".txt", ".md"):
         raise HTTPException(400, "Only PDF, TXT, MD files supported")
-
     raw_bytes = await file.read()
     text_content = ""
     try:
         if ext == ".pdf":
             import subprocess, tempfile
             with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
-                tmp.write(raw_bytes)
-                tmp_path = tmp.name
+                tmp.write(raw_bytes); tmp_path = tmp.name
             try:
-                result = subprocess.run(
-                    ["pdftotext", tmp_path, "-"],
-                    capture_output=True, text=True, timeout=30
-                )
+                result = subprocess.run(["pdftotext", tmp_path, "-"], capture_output=True, text=True, timeout=30)
                 text_content = result.stdout.strip()
             finally:
                 os.unlink(tmp_path)
         else:
             text_content = raw_bytes.decode("utf-8", errors="replace").strip()
     except Exception as e:
-        logger.warning("Text extraction failed for %s: %s", file.filename, e)
-
+        logger.warning("Text extraction failed: %s", e)
     if len(text_content) > 50000:
         text_content = text_content[:50000] + "\n[...truncated]"
-
-    # Save as Gmail draft in user's own inbox — NUMA never stores the file
-    draft_id = ""
-    gmail_err = ""
+    draft_id = ""; gmail_err = ""
     if token_info and user_email:
         try:
             from gmail_client import create_gmail_draft
             subject = f"[NUMA] Report: {file.filename}"
-            body = (
-                f"NUMA Safety Report - processed {datetime.now(timezone.utc).isoformat()}\n\n"
-                f"This draft was created by NUMA Capture. "
-                f"The text was extracted from {file.filename}.\n"
-                f"It lives in your Gmail - NUMA does not store it.\n\n"
-                f"{'=' * 50}\n\n"
-                f"{text_content[:30000]}"
-            )
+            body = f"NUMA Safety Report - processed {datetime.now(timezone.utc).isoformat()}\n\nThis draft was created by NUMA Capture. The text was extracted from {file.filename}.\nIt lives in your Gmail - NUMA does not store it.\n\n{'='*50}\n\n{text_content[:30000]}"
             draft = create_gmail_draft(token_info, user_email, subject, body)
             draft_id = draft.get("id", "")
         except Exception as e:
             gmail_err = str(e)
-            logger.warning("Gmail draft failed: %s", gmail_err)
-
     report = SafetyReport(
-        user_id=user_id,
-        original_filename=file.filename or "report",
-        stored_filename="",
-        gmail_draft_id=draft_id,
-        file_size=len(raw_bytes),
-        content_type=file.content_type or "application/octet-stream",
+        user_id=user_id, original_filename=file.filename or "report",
+        stored_filename="", gmail_draft_id=draft_id,
+        file_size=len(raw_bytes), content_type=file.content_type or "application/octet-stream",
         text_content=text_content or "(empty)",
         status="uploaded" if draft_id else "stored_locally",
     )
-    db.add(report)
-    await db.commit()
-    await db.refresh(report)
-
-    return {
-        "status": "ok",
-        "report": report.to_dict(),
-        "note": "NUMA does not store your files. Data saved to your Gmail drafts.",
-        "gmail_draft_id": draft_id or None,
-        "gmail_error": gmail_err or None,
-    }
+    db.add(report); await db.commit(); await db.refresh(report)
+    return {"status": "ok", "report": report.to_dict(), "note": "NUMA does not store your files. Data saved to your Gmail drafts.", "gmail_draft_id": draft_id or None, "gmail_error": gmail_err or None}
 
 
 @app.get("/api/reports")
-async def list_reports(
-    user: dict = Depends(require_auth),
-    db: AsyncSession = Depends(get_db),
-):
+async def list_reports(user: dict = Depends(require_auth), db: AsyncSession = Depends(get_db)):
     user_id = user.get("sub", "")
     if not user_id:
         raise HTTPException(401, "Not authenticated")
-    result = await db.execute(
-        select(SafetyReport)
-        .where(SafetyReport.user_id == user_id)
-        .order_by(SafetyReport.created_at.desc())
-    )
-    reports = result.scalars().all()
-    return {"reports": [r.to_dict() for r in reports]}
+    result = await db.execute(select(SafetyReport).where(SafetyReport.user_id == user_id).order_by(SafetyReport.created_at.desc()))
+    return {"reports": [r.to_dict() for r in result.scalars().all()]}
 
 
 @app.get("/api/reports/{report_id}")
-async def get_report(
-    report_id: int,
-    user: dict = Depends(require_auth),
-    db: AsyncSession = Depends(get_db),
-):
-    user_id = user.get("sub", "")
-    result = await db.execute(
-        select(SafetyReport).where(
-            SafetyReport.id == report_id,
-            SafetyReport.user_id == user_id,
-        )
-    )
+async def get_report(report_id: int, user: dict = Depends(require_auth), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(SafetyReport).where(SafetyReport.id == report_id, SafetyReport.user_id == user.get("sub", "")))
     report = result.scalar_one_or_none()
     if not report:
         raise HTTPException(404, "Report not found")
-    d = report.to_dict()
-    d["text_content"] = report.text_content
+    d = report.to_dict(); d["text_content"] = report.text_content
     return {"report": d}
 
 
 @app.post("/api/reports/{report_id}/process")
-async def process_report(
-    report_id: int,
-    user: dict = Depends(require_auth),
-    db: AsyncSession = Depends(get_db),
-):
-    user_id = user.get("sub", "")
-    result = await db.execute(
-        select(SafetyReport).where(
-            SafetyReport.id == report_id,
-            SafetyReport.user_id == user_id,
-        )
-    )
+async def process_report(report_id: int, user: dict = Depends(require_auth), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(SafetyReport).where(SafetyReport.id == report_id, SafetyReport.user_id == user.get("sub", "")))
     report = result.scalar_one_or_none()
     if not report:
         raise HTTPException(404, "Report not found")
     if not report.text_content or report.text_content in ("(empty)", "[Error extracting text]"):
         raise HTTPException(400, "Report has no extractable text")
-
-    report.status = "processing"
-    await db.commit()
-
+    report.status = "processing"; await db.commit()
     try:
         from llm import analyze_report_text
         entities = await analyze_report_text(report.text_content)
-
         for ent in entities:
-            ie = IndustrialEntity(
-                entity_type=ent.get("type", "procedure"),
-                name=ent.get("name", "Unknown")[:255],
-                description=ent.get("description", "")[:10000],
-                session_id=None,
-            )
-            db.add(ie)
-
-        report.status = "processed"
-        await db.commit()
-        logger.info("Report %s processed: %d entities extracted", report.id, len(entities))
-        return {"status": "ok", "entities_count": len(entities), "entities": entities}
-
+            db.add(IndustrialEntity(entity_type=ent.get("type","procedure"), name=ent.get("name","Unknown")[:255], description=ent.get("description","")[:10000]))
+        report.status = "processed"; await db.commit()
+        return {"status": "ok", "entities_count": len(entities)}
     except Exception as e:
-        report.status = "error"
-        report.processing_error = str(e)[:512]
-        await db.commit()
-        logger.error("Report %s processing failed: %s", report.id, e)
+        report.status = "error"; report.processing_error = str(e)[:512]; await db.commit()
         raise HTTPException(500, f"Processing failed: {e}")
 
 
 @app.delete("/api/reports/{report_id}")
-async def delete_report(
-    report_id: int,
-    user: dict = Depends(require_auth),
-    db: AsyncSession = Depends(get_db),
-):
-    user_id = user.get("sub", "")
-    result = await db.execute(
-        select(SafetyReport).where(
-            SafetyReport.id == report_id,
-            SafetyReport.user_id == user_id,
-        )
-    )
+async def delete_report(report_id: int, user: dict = Depends(require_auth), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(SafetyReport).where(SafetyReport.id == report_id, SafetyReport.user_id == user.get("sub", "")))
     report = result.scalar_one_or_none()
     if not report:
         raise HTTPException(404, "Report not found")
-    await db.delete(report)
-    await db.commit()
+    await db.delete(report); await db.commit()
     return {"status": "ok", "deleted": report_id, "note": "Original data remains in your Gmail drafts."}
 
 
 @app.get("/api/reports/samples")
 async def get_sample_reports():
-    """Pre-built sample safety reports for demo. No user data involved."""
     return {"samples": [
-        {
-            "id": "sample_1",
-            "title": "Hopper Jam Incident - Packing Line 3",
-            "language": "en",
-            "text": """INCIDENT REPORT: Hopper Jam - Packing Line 3
-Date: 2025-11-14  Equipment: Model H-2000 Rotary Packer, Hopper Assembly #7
-
-At approximately 14:30, operator noticed the hopper on Line 3 was not feeding material. A foreign object (polypropylene bag fragment, 15cm x 10cm) was lodged between the auger flights and hopper wall. Emergency stop activated. LOTO applied. Foreign object removed.
-
-ROOT CAUSE: Torn bulk bag loaded into receiving hopper two hours prior. Fragment traveled through pneumatic conveying system.
-
-CORRECTIVE ACTIONS: Pre-load inspection checklist. Magnetic separator at receiving hopper (2,400 EUR). Train operators to tag damaged bags.
-
-LESSON: Never assume a small tear is harmless - fragments travel through the entire system."""
-        },
-        {
-            "id": "sample_2",
-            "title": "Arc Flash Near-Miss - Substation B",
-            "language": "en",
-            "text": """NEAR-MISS: Arc Flash - Substation B  Date: 2025-12-02  Equipment: 400V Switchboard, MCC-4
-
-During MCC-4 maintenance, electrician used non-contact voltage tester which failed to detect backup UPS feed. Small arc flash occurred when screwdriver bridged live busbar to grounded frame. Full Cat 2 PPE worn. No injuries.
-
-ROOT CAUSE: Switching procedure only addressed main feed. UPS backup not documented. Non-contact tester unreliable for enclosed busbars.
-
-CORRECTIVE ACTIONS: Update switching diagrams for all MCCs. Mandate contact voltmeters. Label backup feeds.
-
-SAFETY RULE: Always verify zero energy with contact voltmeter - non-contact testers are for screening only."""
-        },
-        {
-            "id": "sample_3",
-            "title": "Atasco en Tolva de Dosificacion",
-            "language": "es",
-            "text": """INFORME: Atasco en Tolva - Linea 2  Fecha: 2025-10-28  Equipo: Dosificador DV-300
-
-La tolva dejo de caer material. Material apelmazado formando un puente de 30cm. Carbonato calcico habia absorbido humedad (linea parada 72h con tolva llena y trampilla abierta).
-
-CAUSA RAIZ: Carbonato calcico higroscopico. Humedad 85% HR por trampilla abierta.
-
-ACCIONES: Vaciado de tolvas si parada >24h. Filtro desecante (180 EUR). Check humedad en arranque.
-
-LECCION: Una trampilla abierta es inofensiva hasta que hay 72h de humedad."""
-        },
+        {"id":"sample_1","title":"Hopper Jam - Packing Line 3","language":"en",
+         "text":"INCIDENT: Hopper Jam - Packing Line 3  Date: 2025-11-14  Equipment: H-2000 Rotary Packer\n\nHopper stopped feeding. Foreign object (polypropylene bag fragment) lodged between auger flights and hopper wall. E-stop activated. LOTO applied. Object removed.\n\nROOT CAUSE: Torn bulk bag loaded 2h prior. Fragment traveled through pneumatic system.\n\nACTIONS: Pre-load inspection checklist. Magnetic separator. Train operators.\n\nLESSON: Small tears let fragments travel through the entire system."},
+        {"id":"sample_2","title":"Arc Flash Near-Miss - Substation B","language":"en",
+         "text":"NEAR-MISS: Arc Flash - Substation B  Date: 2025-12-02  Equipment: 400V MCC-4\n\nNon-contact voltage tester failed to detect backup UPS feed. Small arc flash when screwdriver bridged live busbar to ground frame. Cat 2 PPE. No injuries.\n\nROOT CAUSE: Switching diagram only showed main feed. UPS backup undocumented.\n\nACTIONS: Update all MCC diagrams. Mandate contact voltmeters. Label backup feeds.\n\nRULE: Always verify zero energy with contact voltmeter."},
+        {"id":"sample_3","title":"Atasco en Tolva - Linea 2","language":"es",
+         "text":"INFORME: Atasco en Tolva - Linea 2  Fecha: 2025-10-28  Equipo: DV-300\n\nTolva dejo de caer material. Puente de 30cm de carbonato calcico apelmazado por humedad (linea parada 72h, trampilla abierta).\n\nCAUSA: Carbonato calcico higroscopico.\n\nACCIONES: Vaciar tolvas si parada >24h. Filtro desecante.\n\nLECCION: Trampilla abierta = riesgo con materiales higroscopicos."}
     ]}
 
 
 @app.post("/api/reports/process-sample")
-async def process_sample_report(
-    body: dict,
-    user: dict = Depends(require_auth),
-    db: AsyncSession = Depends(get_db),
-):
-    """Process a sample/demo report text and add entities to the industrial graph.
-    No data is stored — NUMA only provides the processing protocol."""
-    text = body.get("text", "")
-    title = body.get("title", "Sample Report")
+async def process_sample_report(body: dict, user: dict = Depends(require_auth), db: AsyncSession = Depends(get_db)):
+    text = body.get("text", ""); title = body.get("title", "Sample")
     if not text or len(text) < 50:
         raise HTTPException(400, "Sample text too short")
-
     try:
         from llm import analyze_report_text
         entities = await analyze_report_text(text)
-        count = 0
         for ent in entities:
-            ie = IndustrialEntity(
-                entity_type=ent.get("type", "procedure"),
-                name=ent.get("name", "Unknown")[:255],
-                description=ent.get("description", "")[:10000],
-                session_id=None,
-            )
-            db.add(ie)
-            count += 1
+            db.add(IndustrialEntity(entity_type=ent.get("type","procedure"), name=ent.get("name","Unknown")[:255], description=ent.get("description","")[:10000]))
         await db.commit()
-        logger.info("Sample '%s' processed: %d entities to graph", title, count)
-        return {"status": "ok", "entities_count": count, "entities": entities}
+        return {"status": "ok", "entities_count": len(entities), "entities": entities}
     except Exception as e:
-        logger.error("Sample processing failed: %s", e)
         raise HTTPException(500, f"Processing failed: {e}")
 
 
