@@ -1,0 +1,60 @@
+{
+  "cross_domain": {
+    "Traditional": {
+      "tokens_per_q": 3588,
+      "calls_per_q": 4.0,
+      "overlap": 0.31,
+      "mode": "Traditional"
+    },
+    "Graph-Only": {
+      "tokens_per_q": 587,
+      "calls_per_q": 1.0,
+      "latency_ms": 478.7,
+      "overlap": 0.283,
+      "mode": "Graph-Only"
+    },
+    "Vector-Only": {
+      "tokens_per_q": 548,
+      "calls_per_q": 1.0,
+      "latency_ms": 464.9,
+      "overlap": 0.313,
+      "mode": "Vector-Only"
+    },
+    "KGAA": {
+      "tokens_per_q": 581,
+      "calls_per_q": 2.0,
+      "latency_ms": 870.0,
+      "overlap": 0.328,
+      "mode": "KGAA"
+    },
+    "KGAA+RRF": {
+      "tokens_per_q": 475,
+      "calls_per_q": 1.0,
+      "latency_ms": 599.2,
+      "overlap": 0.406,
+      "mode": "KGAA+RRF"
+    }
+  },
+  "code_domain": {
+    "Traditional": {
+      "tokens_per_q": 6281,
+      "overlap": 0.845
+    },
+    "Graph-Only": {
+      "tokens_per_q": 564,
+      "overlap": 0.81
+    },
+    "Vector-Only": {
+      "tokens_per_q": 213,
+      "overlap": 0.526
+    },
+    "KGAA": {
+      "tokens_per_q": 387,
+      "overlap": 0.691
+    },
+    "KGAA+RRF": {
+      "tokens_per_q": 574,
+      "overlap": 0.569
+    }
+  }
+}

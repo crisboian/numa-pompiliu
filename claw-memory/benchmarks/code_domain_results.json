@@ -1,0 +1,287 @@
+{
+  "Traditional": {
+    "avg_tokens": 6281,
+    "avg_calls": 4.0,
+    "avg_latency_ms": 1.7,
+    "avg_keyword_overlap": 0.845,
+    "per_question": [
+      {
+        "tokens": 6281,
+        "calls": 4,
+        "latency_ms": 3.1,
+        "keyword_overlap": 1.0,
+        "mode": "Traditional"
+      },
+      {
+        "tokens": 6281,
+        "calls": 4,
+        "latency_ms": 1.5,
+        "keyword_overlap": 0.667,
+        "mode": "Traditional"
+      },
+      {
+        "tokens": 6281,
+        "calls": 4,
+        "latency_ms": 1.4,
+        "keyword_overlap": 0.75,
+        "mode": "Traditional"
+      },
+      {
+        "tokens": 6281,
+        "calls": 4,
+        "latency_ms": 1.3,
+        "keyword_overlap": 0.75,
+        "mode": "Traditional"
+      },
+      {
+        "tokens": 6281,
+        "calls": 4,
+        "latency_ms": 1.5,
+        "keyword_overlap": 1.0,
+        "mode": "Traditional"
+      },
+      {
+        "tokens": 6281,
+        "calls": 4,
+        "latency_ms": 1.4,
+        "keyword_overlap": 0.75,
+        "mode": "Traditional"
+      },
+      {
+        "tokens": 6281,
+        "calls": 4,
+        "latency_ms": 1.4,
+        "keyword_overlap": 1.0,
+        "mode": "Traditional"
+      }
+    ]
+  },
+  "Graph-Only": {
+    "avg_tokens": 564,
+    "avg_calls": 1.0,
+    "avg_latency_ms": 475.6,
+    "avg_keyword_overlap": 0.81,
+    "per_question": [
+      {
+        "tokens": 553,
+        "calls": 1,
+        "latency_ms": 664.1,
+        "keyword_overlap": 1.0,
+        "mode": "Graph-Only"
+      },
+      {
+        "tokens": 419,
+        "calls": 1,
+        "latency_ms": 447.3,
+        "keyword_overlap": 0.667,
+        "mode": "Graph-Only"
+      },
+      {
+        "tokens": 644,
+        "calls": 1,
+        "latency_ms": 448.2,
+        "keyword_overlap": 0.75,
+        "mode": "Graph-Only"
+      },
+      {
+        "tokens": 712,
+        "calls": 1,
+        "latency_ms": 446.2,
+        "keyword_overlap": 0.75,
+        "mode": "Graph-Only"
+      },
+      {
+        "tokens": 455,
+        "calls": 1,
+        "latency_ms": 439.6,
+        "keyword_overlap": 1.0,
+        "mode": "Graph-Only"
+      },
+      {
+        "tokens": 573,
+        "calls": 1,
+        "latency_ms": 442.7,
+        "keyword_overlap": 0.5,
+        "mode": "Graph-Only"
+      },
+      {
+        "tokens": 593,
+        "calls": 1,
+        "latency_ms": 441.4,
+        "keyword_overlap": 1.0,
+        "mode": "Graph-Only"
+      }
+    ]
+  },
+  "Vector-Only": {
+    "avg_tokens": 213,
+    "avg_calls": 1.0,
+    "avg_latency_ms": 447.4,
+    "avg_keyword_overlap": 0.526,
+    "per_question": [
+      {
+        "tokens": 61,
+        "calls": 1,
+        "latency_ms": 452.4,
+        "keyword_overlap": 0.333,
+        "mode": "Vector-Only"
+      },
+      {
+        "tokens": 47,
+        "calls": 1,
+        "latency_ms": 444.7,
+        "keyword_overlap": 0.0,
+        "mode": "Vector-Only"
+      },
+      {
+        "tokens": 428,
+        "calls": 1,
+        "latency_ms": 441.9,
+        "keyword_overlap": 0.75,
+        "mode": "Vector-Only"
+      },
+      {
+        "tokens": 418,
+        "calls": 1,
+        "latency_ms": 439.2,
+        "keyword_overlap": 0.75,
+        "mode": "Vector-Only"
+      },
+      {
+        "tokens": 234,
+        "calls": 1,
+        "latency_ms": 452.4,
+        "keyword_overlap": 1.0,
+        "mode": "Vector-Only"
+      },
+      {
+        "tokens": 229,
+        "calls": 1,
+        "latency_ms": 459.4,
+        "keyword_overlap": 0.25,
+        "mode": "Vector-Only"
+      },
+      {
+        "tokens": 75,
+        "calls": 1,
+        "latency_ms": 441.6,
+        "keyword_overlap": 0.6,
+        "mode": "Vector-Only"
+      }
+    ]
+  },
+  "KGAA": {
+    "avg_tokens": 387,
+    "avg_calls": 2.0,
+    "avg_latency_ms": 452.7,
+    "avg_keyword_overlap": 0.691,
+    "per_question": [
+      {
+        "tokens": 238,
+        "calls": 2,
+        "latency_ms": 445.9,
+        "keyword_overlap": 0.667,
+        "mode": "KGAA"
+      },
+      {
+        "tokens": 342,
+        "calls": 2,
+        "latency_ms": 442.5,
+        "keyword_overlap": 0.667,
+        "mode": "KGAA"
+      },
+      {
+        "tokens": 502,
+        "calls": 2,
+        "latency_ms": 437.0,
+        "keyword_overlap": 0.25,
+        "mode": "KGAA"
+      },
+      {
+        "tokens": 618,
+        "calls": 2,
+        "latency_ms": 437.3,
+        "keyword_overlap": 0.75,
+        "mode": "KGAA"
+      },
+      {
+        "tokens": 376,
+        "calls": 2,
+        "latency_ms": 510.1,
+        "keyword_overlap": 1.0,
+        "mode": "KGAA"
+      },
+      {
+        "tokens": 335,
+        "calls": 2,
+        "latency_ms": 446.6,
+        "keyword_overlap": 0.5,
+        "mode": "KGAA"
+      },
+      {
+        "tokens": 301,
+        "calls": 2,
+        "latency_ms": 449.5,
+        "keyword_overlap": 1.0,
+        "mode": "KGAA"
+      }
+    ]
+  },
+  "KGAA+RRF": {
+    "avg_tokens": 574,
+    "avg_calls": 1.0,
+    "avg_latency_ms": 833.2,
+    "avg_keyword_overlap": 0.569,
+    "per_question": [
+      {
+        "tokens": 661,
+        "calls": 1,
+        "latency_ms": 475.3,
+        "keyword_overlap": 0.333,
+        "mode": "KGAA+RRF"
+      },
+      {
+        "tokens": 539,
+        "calls": 1,
+        "latency_ms": 718.1,
+        "keyword_overlap": 0.0,
+        "mode": "KGAA+RRF"
+      },
+      {
+        "tokens": 479,
+        "calls": 1,
+        "latency_ms": 1033.4,
+        "keyword_overlap": 0.75,
+        "mode": "KGAA+RRF"
+      },
+      {
+        "tokens": 601,
+        "calls": 1,
+        "latency_ms": 896.9,
+        "keyword_overlap": 0.75,
+        "mode": "KGAA+RRF"
+      },
+      {
+        "tokens": 539,
+        "calls": 1,
+        "latency_ms": 858.9,
+        "keyword_overlap": 1.0,
+        "mode": "KGAA+RRF"
+      },
+      {
+        "tokens": 639,
+        "calls": 1,
+        "latency_ms": 831.1,
+        "keyword_overlap": 0.75,
+        "mode": "KGAA+RRF"
+      },
+      {
+        "tokens": 560,
+        "calls": 1,
+        "latency_ms": 1018.9,
+        "keyword_overlap": 0.4,
+        "mode": "KGAA+RRF"
+      }
+    ]
+  }
+}

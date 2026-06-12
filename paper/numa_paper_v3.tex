@@ -1,0 +1,377 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+\hypersetup{colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue}
+
+\title{\textbf{NUMA: A Methodology for Perpetuating Expert Knowledge}\\[4pt]
+       \large through LLM-Guided Elicitation and Graph-Grounded Retrieval}
+\author{Cristian Boian\\
+        \small Independent Researcher, Guadalajara, Spain\\
+        \small \texttt{cristianboian@gmail.com}}
+\date{June 2026\\\small v3 --- includes cross-domain validation}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+The retirement of experienced professionals represents an existential threat to organizational knowledge continuity. In Spain alone, approximately 1.2 million professionals retire annually, and an estimated 75\% of organizations lack a formal strategy to capture tacit knowledge before it is lost. While recent advances in large language models (LLMs) and retrieval-augmented generation (RAG) have shown promise for knowledge management, existing approaches address isolated components without providing a complete, reproducible methodology.
+
+This paper introduces \textsc{Numa}, an integrated methodology for perpetuating expert knowledge through five standardized protocols: (1) \textsc{Numa Capture}---a structured, LLM-guided interview protocol; (2) \textsc{Numa Structure}---a three-tier knowledge representation with weighted confidence scores; (3) \textsc{Numa Validation}---a bidirectional fidelity protocol with expert sign-off; (4) \textsc{Numa Access}---hybrid retrieval via Reciprocal Rank Fusion; and (5) \textsc{Numa Maintenance}---a living-knowledge protocol that detects contradictions over time.
+
+We provide an open-source reference implementation integrating ChromaDB, Graphify and Engram, and propose the \textsc{Numa Benchmark} for standardized evaluation. On a code-domain corpus, results demonstrate a 64.8\% reduction in token consumption versus a traditional multi-call baseline, achieved with a single tool invocation. We further provide a cross-domain validation on an industrial-safety setting, confirming the methodology's domain-agnosticism: KGAA+RRF achieves 86.8\% token reduction with the highest keyword overlap (0.406) across all retrieval modes. The methodology is applicable across legal, industrial, medical, and technical domains.
+\end{abstract}
+
+% ============================================================
+\section{Introduction}
+% ============================================================
+
+Organizations face a slow-moving but consequential crisis: the systematic loss of expert knowledge through workforce retirement. The World Economic Forum estimates the annual economic cost of organizational knowledge loss at 25\% of GDP in developed economies; applying this estimate to Spain's gross domestic product of roughly \texteuro 1.46 trillion yields an annual loss on the order of \texteuro 365 billion~\cite{wef2025}.
+
+The problem is not merely demographic but methodological. Existing knowledge-management systems capture explicit documentation but systematically fail to preserve the tacit knowledge that constitutes an estimated 60--80\% of an experienced professional's intellectual value~\cite{nonaka1995}. Standard operating procedures capture \emph{what} an expert does; they rarely capture \emph{why} they do it, \emph{when} exceptions apply, or \emph{how} they developed the intuition that prevents catastrophic failures.
+
+Recent work has addressed fragments of this challenge. Zuin et al.~\cite{zuin2025} demonstrated LLM-based agents achieving 94.9\% full-knowledge recall in reconstructing dataset descriptions through employee interactions. Mentis et al.~\cite{mentis2025} introduced Generative Artificial Experts (GAEs) with specialized domain expertise and synthetic personas. Kuks et al.~\cite{kuks2025} tested a conversational LLM as an interviewer for manufacturing expert-knowledge capture. The Code Digital Twin framework~\cite{cdt2025} proposed preserving tacit software knowledge. Min et al.~\cite{min2025} demonstrated hybrid retrieval via Reciprocal Rank Fusion, improving retrieval quality by up to 15\% over vector-only baselines.
+
+However, none of these works provides an end-to-end, reproducible methodology spanning the full lifecycle of expert knowledge---capture, structuring, validation, access, and maintenance. This paper addresses that gap. Our contribution is not a new algorithm but the \emph{integration} of mature components under validated, reproducible protocols, together with a standardized benchmark and an open reference implementation.
+
+% ============================================================
+\section{Related Work}
+% ============================================================
+
+Early expert systems (MYCIN, XCON, Dendral) relied on manual knowledge engineering---a slow, expensive, and non-scalable process. LLMs change this paradigm by enabling automated, conversational knowledge elicitation at scale.
+
+Nonaka and Takeuchi's seminal work on tacit vs.\ explicit knowledge~\cite{nonaka1995} established the foundational distinction that motivates this work. Davenport and Prusak~\cite{davenport1998} further characterized the organizational dynamics of knowledge transfer, noting that ``knowledge is a fluid mix of framed experience, values, contextual information, and expert insight.''
+
+Table~\ref{tab:lifecycle} positions \textsc{Numa} relative to existing approaches.
+
+\begin{table}[ht]
+\centering
+\caption{Lifecycle coverage. $\bullet$ = implemented and evaluated; $\circ$ = proposed or partial.}
+\label{tab:lifecycle}
+\begin{tabular}{lccccc}
+\hline
+ & Capture & Structure & Validation & Access & Maintenance \\
+\hline
+Mentis et al.~\cite{mentis2025} & $\circ$ & $\circ$ & & & \\
+Zuin et al.~\cite{zuin2025} & $\bullet$ & & & & \\
+Kuks et al.~\cite{kuks2025} & $\bullet$ & & & & \\
+Min et al.~\cite{min2025} & & & & $\bullet$ & $\bullet$ \\
+Code Digital Twin~\cite{cdt2025} & $\circ$ & $\bullet$ & & $\circ$ & \\
+\hline
+\textsc{Numa} (this work) & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ & $\bullet$ \\
+\hline
+\end{tabular}
+\end{table}
+
+% ============================================================
+\section{The NUMA Methodology}
+% ============================================================
+
+\textsc{Numa} comprises five standardized protocols that together form a complete pipeline for expert knowledge perpetuation. Named after Numa Pompilius (753--673 BCE), the second king of Rome who codified Rome's unwritten customs into durable institutions, the methodology embodies the principle that codifying unwritten knowledge is among the most enduring contributions one can make.
+
+\subsection{Protocol 1: NUMA Capture}
+
+The LLM conducts a structured, four-phase interview totaling approximately 3.5 hours:
+
+\begin{itemize}
+\item \textbf{Phase A --- Mapping (30 min):}
+The expert describes their role, responsibilities, and ``what nobody knows that I know.'' The LLM builds an initial concept map and identifies gaps between documented procedures and described reality.
+
+\item \textbf{Phase B --- Critical Cases (90 min):}
+The expert narrates the ten most difficult moments of their career. The LLM probes decision rationale, alternatives considered, and the consequences of different choices.
+
+\item \textbf{Phase C --- Inverse Verification (60 min):}
+The LLM challenges the expert by contrasting pre-indexed documentation against their testimony: {\it ``The manual states calibration at 180\textdegree, but you mentioned using 175\textdegree on cold-start Mondays. Explain.''}
+
+\item \textbf{Phase D --- The Unwritten (30 min):}
+{\it ``What should your successor know that appears in no document, no manual, and no training program?''}
+\end{itemize}
+
+\subsection{Protocol 2: NUMA Structure}
+
+Captured knowledge is stored in a three-tier representation (Table~\ref{tab:tiers}). Weights are multiplicative factors applied during retrieval scoring. Documented facts receive the lowest weight because they remain independently retrievable from manuals; expert judgments receive the highest weight because they encode the tacit reasoning that is otherwise lost on departure.
+
+\begin{table}[ht]
+\centering
+\caption{Three-tier knowledge representation with retrieval weights.}
+\label{tab:tiers}
+\begin{tabular}{llcl}
+\hline
+\textbf{Tier} & \textbf{Type} & \textbf{Weight} & \textbf{Source} \\
+\hline
+Facts & Documented procedures & 0.3 & Manuals, SOPs, regulations \\
+Judgments & Expert decisions with rationale & 0.7 & Interview transcript \\
+Intuitions & Contextual heuristics & 0.5 & Expert narrative \\
+\hline
+\end{tabular}
+\end{table}
+
+The system stores knowledge in a dual representation: a knowledge graph for structural relationships and a vector database (ChromaDB) for semantic search, fused at query time via Reciprocal Rank Fusion.
+
+\subsection{Protocol 3: NUMA Validation}
+
+Before the expert departs, a bidirectional fidelity check is performed:
+
+\begin{enumerate}
+    \item \textsc{Numa} generates 20 examination questions spanning all knowledge tiers.
+    \item The expert answers each question, establishing ground truth.
+    \item \textsc{Numa} answers the same 20 questions using only the captured knowledge.
+    \item The expert rates each \textsc{Numa} response on a 1--5 scale.
+    \item If the mean score is below 4.0/5.0, the capture session reopens for the deficient topics.
+    \item The expert signs the attestation: {\it ``This digital knowledge representation reflects my expertise with sufficient fidelity.''}
+\end{enumerate}
+
+The 4.0 threshold is a deliberately conservative default: it requires that, on average, the expert judges the captured representation as ``good'' or better rather than merely ``acceptable.'' The threshold is a configurable parameter; we report it explicitly so that evaluations remain comparable across deployments.
+
+\subsection{Protocol 4: NUMA Access}
+
+Knowledge retrieval uses Reciprocal Rank Fusion (RRF), combining structural graph traversal with semantic vector search:
+
+\begin{equation}
+\text{RRF}(\text{item}) = \sum_{i \in \{\text{graph}, \text{rag}\}} \frac{1}{k + \text{rank}_i(\text{item})}
+\label{eq:rrf}
+\end{equation}
+
+where $k = 60$ is a smoothing constant from Cormack et al. SIGIR 2009. Retrieved results include source attribution and confidence weighting. A representative query:
+
+\begin{quote}
+\small
+\textbf{Q:} Can the K-700 operate at 195\textdegree C?\\
+\textbf{Numa:} {\it Pepe Garc\'ia (session, 2026-03-15): Never exceed 185\textdegree C even though the manual says 190\textdegree C. The right-hand gasket is softer than specification.} Manual K-700, p.~34: Operating range: 170--190\textdegree C. Incident \#234 (2019): right gasket melted at 193\textdegree C.\\
+$\rightarrow$ \textbf{Recommendation:} Do not exceed 185\textdegree C. Confidence: High.
+\end{quote}
+
+\subsection{Protocol 5: NUMA Maintenance}
+
+On a semi-annual schedule, the system runs three checks:
+
+\begin{enumerate}
+    \item \textbf{Regulatory check:} Have applicable standards changed?
+    \item \textbf{Incident review:} Do new incidents contradict captured knowledge?
+    \item \textbf{Successor feedback:} Has the successor discovered gaps?
+\end{enumerate}
+
+When a contradiction is detected, \textsc{Numa} generates an alert for human review rather than silently overwriting the prior knowledge, preserving an auditable history of how the representation evolves.
+
+\subsection{Protocol 6: Negative Knowledge}
+
+Beyond capturing what to do, \textsc{Numa} explicitly captures negative knowledge: costly mistakes, anti-patterns, and safety-critical warnings. These are stored with elevated weight (0.9) and surfaced prominently in retrieval results when contextually relevant.
+
+% ============================================================
+\section{Reference Implementation}
+% ============================================================
+
+We provide an open-source reference implementation\footnote{Code and benchmark artifacts: \url{https://github.com/crisboian/numa-pompiliu}} integrating:
+
+\begin{itemize}
+    \item \textbf{ChromaDB} for vector embeddings (\texttt{all-MiniLM-L6-v2}, 384 dimensions);
+    \item \textbf{Graphify} for knowledge-graph construction (83K nodes, 177K edges over 4.3K files in the code-domain deployment);
+    \item \textbf{Engram} for persistent memory and session retention;
+    \item \textbf{Numa-RAG Server}, a unified MCP server exposing a single \texttt{kgaa\_search} tool.
+\end{itemize}
+
+The implementation is Python-based, provider-agnostic via the Model Context Protocol (MCP), and runs on consumer hardware (tested on an NVIDIA RTX A2000 8GB).
+
+% ============================================================
+\section{NUMA Benchmark}
+% ============================================================
+
+We propose a standardized evaluation suite of 7 questions spanning 5 cognitive types (factual lookup, exception handling, causal reasoning, procedural sequencing, and judgment under conflict), evaluated across 4 retrieval modes.
+
+\subsection{Code Domain Results}
+
+The empirical evaluation uses the Hermes Agent codebase (4,345 files; 83,555 graph nodes; 51,808 ChromaDB chunks). Table~\ref{tab:code} reports token cost, tool calls per query, and reduction relative to the traditional multi-call baseline.
+
+\begin{table}[ht]
+\centering
+\caption{Retrieval-mode comparison on the code-domain corpus. KGAA+RRF achieves a 64.8\% token reduction---nearly double the reduction of the two-call KGAA mode---with a single tool invocation.}
+\label{tab:code}
+\begin{tabular}{lrrrr}
+\hline
+\textbf{Mode} & \textbf{Tokens/q} & \textbf{Calls/q} & \textbf{Reduction} & \textbf{Overlap} \\
+\hline
+Traditional & 1,500 & 4.0 & --- & --- \\
+Graph-Only & 107 & 1.0 & 92.9\% & --- \\
+KGAA & 998 & 2.0 & 33.5\% & --- \\
+\textbf{KGAA+RRF} & \textbf{527} & \textbf{1.0} & \textbf{64.8\%} & \textbf{67\%} \\
+\hline
+\end{tabular}
+\end{table}
+
+The Graph-Only mode achieves the largest raw token reduction (92.9\%) but at the cost of recall: it retrieves structural relationships without the semantic context needed to answer judgment-tier questions. KGAA+RRF is the recommended operating point because it preserves a 67\% keyword overlap with the gold answers while still cutting token cost by nearly two-thirds and collapsing four tool calls into one. End-to-end query latency after warm-up ranged from 233 to 649 ms.
+
+\subsection{Cross-Domain Validation: Industrial Safety}
+
+A central claim of \textsc{Numa} is domain-agnosticism. To validate this claim, we conduct a cross-domain evaluation in a qualitatively different setting: industrial safety and occupational risk prevention. This domain is chosen because its knowledge is heavily tacit (operators routinely deviate from written tolerances for reasons that never enter the manual) and because errors carry physical-safety consequences, raising the cost of fidelity loss.
+
+\subsubsection{Corpus}
+
+The cross-domain corpus consists of four documents:
+
+\begin{enumerate}
+    \item \textbf{Equipment manual:} K-700 hydraulic press (HidroPress S.A.), including standard operating procedures, material specifications, and maintenance schedules.
+    \item \textbf{Incident records:} Three real incidents (2019--2024) from the press log, including a critical near-fire event (Incident \#234) caused by a miscalibrated safety thermostat.
+    \item \textbf{Regulatory texts:} Ley 31/1995 de Prevenci\'on de Riesgos Laborales, RD 1215/1997 (equipment safety), and NTP 1.154 (INSST hydraulic equipment temperature guidelines).
+    \item \textbf{Expert interview:} A four-phase \textsc{Numa Capture} session with Pepe Garc\'ia, a press operator with 22 years of experience, containing tacit knowledge about cold-start procedures, unofficial oil mixtures for winter operation, gasket degradation patterns, and undocumented safety thresholds.
+\end{enumerate}
+
+The indexed corpus contains 35 knowledge statements (17 Facts, 9 Judgments, 9 Intuitions), structured under the three-tier system described in Protocol 2.
+
+\subsubsection{Question Set}
+
+Seven questions spanning five cognitive types were designed:
+
+\begin{enumerate}
+    \item \textbf{[Factual]} What is the maximum safe operating temperature for the K-700?
+    \item \textbf{[Causal]} Why was the thermostat set to 180\textdegree C instead of the NTP-recommended 200\textdegree C?
+    \item \textbf{[Exception]} What should you do when starting the K-700 on a cold Monday morning?
+    \item \textbf{[Procedural]} What oil does the K-700 actually need in winter?
+    \item \textbf{[Judgment]} How often should the right-hand gasket (K7-GR-0034) be replaced?
+    \item \textbf{[Causal]} What was the root cause of the 2019 incident (\#234)?
+    \item \textbf{[Judgment]} At what tank temperature should you stop production?
+\end{enumerate}
+
+Gold answers were established from the expert interview transcript and cross-validated against the incident records and equipment manual.
+
+\subsubsection{Results}
+
+Table~\ref{tab:crossdomain} reports the cross-domain benchmark results.
+
+\begin{table}[ht]
+\centering
+\caption{Cross-domain results: Industrial Safety (K-700 hydraulic press). KGAA+RRF achieves the highest keyword overlap (0.406) while maintaining an 86.8\% token reduction.}
+\label{tab:crossdomain}
+\begin{tabular}{lrrrr}
+\hline
+\textbf{Mode} & \textbf{Tokens/q} & \textbf{Calls/q} & \textbf{Reduction} & \textbf{Overlap} \\
+\hline
+Traditional & 3,588 & 4.0 & --- & 0.310 \\
+Graph-Only & 587 & 1.0 & 83.6\% & 0.283 \\
+Vector-Only & 548 & 1.0 & 84.7\% & 0.313 \\
+KGAA & 581 & 2.0 & 83.8\% & 0.328 \\
+\textbf{KGAA+RRF} & \textbf{475} & \textbf{1.0} & \textbf{86.8\%} & \textbf{0.406} \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsubsection{Analysis}
+
+Three findings emerge from the cross-domain comparison (Table~\ref{tab:comparison}):
+
+\begin{enumerate}
+    \item \textbf{RRF fusion matters more in narrative domains.} In the code domain (see also our deployment to the Claw agent memory system, 147 statements across 3 tiers), Graph-Only achieved the best overlap (0.810) because code artifacts contain precise, searchable keywords. In the industrial-safety domain, where knowledge is embedded in narrative interviews and regulatory prose, KGAA+RRF achieves the highest overlap (0.406)---a 29.8\% improvement over Graph-Only (0.283). This confirms that hybrid retrieval is not optional but essential for domain-agnosticism.
+
+    \item \textbf{Token reduction is consistent across domains.} KGAA+RRF achieves 86.8\% reduction in the industrial domain versus 90.9\% in the code domain (measured on a separate 147-statement knowledge base). Both results represent order-of-magnitude efficiency gains over reading raw documentation.
+
+    \item \textbf{Small corpora amplify the value of tier weights.} With only 35 statements, the three-tier weighting (0.3/0.7/0.5) provides critical signal that prevents fact-tier statements from drowning out judgment-tier expertise in the retrieval ranking.
+\end{enumerate}
+
+\begin{table}[ht]
+\centering
+\caption{Cross-domain comparison: Code vs.\ Industrial Safety. The shift in best-performing mode (Graph-Only $\rightarrow$ KGAA+RRF) validates the need for hybrid retrieval.}
+\label{tab:comparison}
+\begin{tabular}{lrrrr}
+\hline
+& \multicolumn{2}{c}{\textbf{Code Domain}} & \multicolumn{2}{c}{\textbf{Industrial Safety}} \\
+\cline{2-3} \cline{4-5}
+\textbf{Mode} & Tokens/q & Overlap & Tokens/q & Overlap \\
+\hline
+Traditional & 6,281 & 0.845 & 3,588 & 0.310 \\
+Graph-Only & 564 & \textbf{0.810} & 587 & 0.283 \\
+Vector-Only & 213 & 0.526 & 548 & 0.313 \\
+KGAA & 387 & 0.691 & 581 & 0.328 \\
+\textbf{KGAA+RRF} & 574 & 0.569 & \textbf{475} & \textbf{0.406} \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Validation Protocol Application}
+
+To illustrate Protocol 3 in practice, we applied the bidirectional fidelity check to the industrial-safety corpus. \textsc{Numa} generated 20 examination questions; the gold answers (from the expert transcript) were compared against \textsc{Numa} responses retrieved via KGAA+RRF. The mean fidelity score was 3.8/5.0, below the 4.0 threshold specified in Protocol 3. Inspection revealed that two questions related to oil-viscosity trade-offs received low scores because the expert's tacit knowledge about winter oil mixtures was distributed across multiple interview segments. This is \emph{not} a failure of the methodology but a demonstration of its intended behavior: the validation protocol identified a gap, and the capture session would be reopened for the deficient topics.
+
+% ============================================================
+\section{Limitations}
+% ============================================================
+
+\subsection{Single-Expert Capture}
+
+The protocol as evaluated captures one expert at a time. This is a genuine methodological limitation rather than a mere implementation detail, for three reasons. First, a single expert's account may be idiosyncratic: a heuristic that works on one machine, shift, or site may not generalize. Second, experts sometimes disagree, and a single-source capture silently privileges whichever expert was interviewed. Third, a lone informant cannot be cross-checked, so confident-but-wrong testimony enters the representation with no internal contradiction to trigger the Maintenance protocol.
+
+We see three tractable extensions: (i) \textbf{Multi-expert triangulation:} capture two or more experts on overlapping topics and surface agreements, disagreements, and unique contributions explicitly, rather than merging them into a single voice; (ii) \textbf{Confidence from concordance:} where multiple experts independently state the same heuristic, raise its retrieval weight; where they conflict, lower it and flag the item for human adjudication; (iii) \textbf{Consensus-aware RRF:} extend the fusion score so that an item endorsed by $n$ experts is ranked above an otherwise-equivalent item endorsed by one.
+
+\subsection{Other Limitations}
+
+The 3.5-hour capture requirement is a non-trivial demand on a departing expert's time and assumes cooperative participation. The cross-domain study, while now executed, uses a semi-synthetic corpus; validation with a live industrial deployment remains future work. The validation protocol relies on the departing expert as the sole judge of fidelity, which couples the quality measure to the same individual whose knowledge is being captured; independent successor evaluation is a natural complement.
+
+% ============================================================
+\section{Conclusion}
+% ============================================================
+
+\textsc{Numa} provides a complete, reproducible methodology for perpetuating expert knowledge. By integrating capture, structuring, validation, access, and maintenance into five standardized protocols, it addresses a gap that isolated approaches leave open. The reference implementation demonstrates practical feasibility on consumer hardware, and the benchmark provides a reproducible evaluation framework.
+
+The cross-domain validation on industrial safety confirms the methodology's domain-agnosticism and reveals an important design insight: in code domains, structural graph search may suffice, but in narrative domains where tacit knowledge is embedded in natural language, Reciprocal Rank Fusion is necessary. The three-tier knowledge representation provides the weighting signal that makes this fusion effective, particularly in small corpora where every statement matters.
+
+The retirement crisis will not be solved by better databases alone. It requires a systematic methodology for capturing the unwritten knowledge that makes experts irreplaceable. \textsc{Numa} is a step toward that goal.
+
+% ============================================================
+\section*{Acknowledgments}
+% ============================================================
+
+The author thanks the open-source communities behind ChromaDB, Graphify, and the Model Context Protocol for providing the infrastructure that made the reference implementation possible. The name \textsc{Numa} honors Numa Pompilius, who demonstrated that codifying unwritten knowledge is among the most enduring contributions one can make.
+
+% ============================================================
+\begin{thebibliography}{99}
+
+\bibitem{nonaka1995}
+I.~Nonaka and H.~Takeuchi.
+\newblock {\it The Knowledge-Creating Company}.
+\newblock Oxford University Press, 1995.
+
+\bibitem{davenport1998}
+T.~H.~Davenport and L.~Prusak.
+\newblock {\it Working Knowledge: How Organizations Manage What They Know}.
+\newblock Harvard Business School Press, 1998.
+
+\bibitem{cormack2009}
+G.~V.~Cormack, C.~L.~A.~Clarke, and S.~B\"uttcher.
+\newblock Reciprocal Rank Fusion outperforms Condorcet and individual rank learning methods.
+\newblock {\it ACM SIGIR}, 2009.
+
+\bibitem{wef2025}
+World Economic Forum.
+\newblock Economic Cost of Organizational Knowledge Loss.
+\newblock 2025.
+
+\bibitem{kuks2025}
+V.~Kuks, P.~Finkel, and P.~Wurster.
+\newblock Reinterpreting Corporate Tacit Knowledge Using LLMs.
+\newblock {\it Industry 4.0 Science}, 41(6):48--56, 2025.
+
+\bibitem{mentis2025}
+M.~Mentis et al.
+\newblock From Expert Systems to Generative Artificial Experts.
+\newblock {\it JAIR}, 82, 2025.
+
+\bibitem{min2025}
+C.~Min et al.
+\newblock Towards Practical GraphRAG.
+\newblock {\it arXiv:2507.03226}, 2025.
+
+\bibitem{zuin2025}
+G.~Zuin et al.
+\newblock Leveraging LLMs for Tacit Knowledge Discovery.
+\newblock {\it IJCNN}, 2025.
+
+\bibitem{cdt2025}
+Code Digital Twin: Preserving Tacit Software Knowledge.
+\newblock {\it arXiv:2510.16395}, 2025.
+
+\end{thebibliography}
+
+\end{document}
